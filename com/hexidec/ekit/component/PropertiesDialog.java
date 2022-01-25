@@ -37,6 +37,7 @@ import javax.swing.JOptionPane;
 import javax.swing.JTextField;
 
 import com.hexidec.util.Translatrix;
+import javax.swing.JLabel;
 
 /** Class for providing a dialog that lets the user specify values for tag attributes
   */
@@ -45,7 +46,7 @@ public class PropertiesDialog extends JDialog
 	private JOptionPane jOptionPane;
 	private Hashtable<String, JComponent> htInputFields;
 
-	public PropertiesDialog(Frame parent, String[] fields, String[] types, String[] values, String title, boolean bModal)
+	public PropertiesDialog(Frame parent, String[] fields, char[] shortcuts, String[] types, String[] values, String title, boolean bModal)
 	{
 		super(parent, title, bModal);
 		htInputFields = new Hashtable<String, JComponent>();
@@ -90,11 +91,15 @@ public class PropertiesDialog extends JDialog
 				fieldComponent = new JTextField(3);
 			}
 			htInputFields.put(fieldName, fieldComponent);
-			panelContents[objectCount] = fieldName; // Translatrix.getTranslationString(fieldName);
+            JLabel label = new JLabel(fieldName);
+            label.setDisplayedMnemonic(shortcuts[iter]);
+            label.setLabelFor(fieldComponent);
+			panelContents[objectCount] = label; // Translatrix.getTranslationString(fieldName);
 			panelContents[objectCount + 1] = fieldComponent;
 			objectCount += 2;
 		}
-		jOptionPane = new JOptionPane(panelContents, JOptionPane.QUESTION_MESSAGE, JOptionPane.OK_CANCEL_OPTION, null, buttonLabels, buttonLabels[0]);
+		jOptionPane = new JOptionPane(panelContents, JOptionPane.QUESTION_MESSAGE, JOptionPane.OK_CANCEL_OPTION, null,
+            buttonLabels, buttonLabels[0]);
 
 		setContentPane(jOptionPane);
 		setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
@@ -124,9 +129,9 @@ public class PropertiesDialog extends JDialog
 		this.pack();
 	}
 
-	public PropertiesDialog(Frame parent, String[] fields, String[] types, String title, boolean bModal)
+	public PropertiesDialog(Frame parent, String[] fields, char[] shortcuts, String[] types, String title, boolean bModal)
 	{
-		this(parent, fields, types, new String[fields.length], title, bModal);
+		this(parent, fields, shortcuts, types, new String[fields.length], title, bModal);
 	}
 
 	public String getFieldValue(String fieldName)

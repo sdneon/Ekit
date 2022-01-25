@@ -522,7 +522,8 @@ public class RelativeImageView extends View implements ImageObserver, MouseListe
 	{
 		if((fContainer != null) && (fBounds != null))
 		{
-			fContainer.repaint(delay, fBounds.x, fBounds.y, fBounds.width, fBounds.height);
+			//fContainer.repaint(delay, fBounds.x, fBounds.y, fBounds.width, fBounds.height);
+			fContainer.repaint(delay);
 		}
 	}
 

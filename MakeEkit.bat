@@ -59,3 +59,4 @@
   @set compilemode=
   @set additionalfiles=
   @echo [] finished
+  @PAUSE

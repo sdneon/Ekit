@@ -110,6 +110,8 @@ import com.hexidec.ekit.component.*;
 import com.hexidec.util.Base64Codec;
 import com.hexidec.util.Translatrix;
 import com.hexidec.ekit.thirdparty.print.DocumentRenderer;
+import java.awt.event.MouseWheelListener;
+import java.awt.event.MouseWheelEvent;
 
 /** EkitCore
   * Main application class for editing and saving HTML in a Java text component
@@ -124,6 +126,42 @@ import com.hexidec.ekit.thirdparty.print.DocumentRenderer;
 
 public class EkitCore extends JPanel implements ActionListener, KeyListener, FocusListener, DocumentListener
 {
+    public static final String[] MENU_FONT_COLOR_NAMES = {
+        "ColorAqua",
+        "ColorBlack",
+        "ColorBlue",
+        "ColorFuschia",
+        "ColorGray",
+        "ColorGreen",
+        "ColorLime",
+        "ColorMaroon",
+        "ColorNavy",
+        "ColorOlive",
+        "ColorPurple",
+        "ColorRed",
+        "ColorSilver",
+        "ColorTeal",
+        "ColorWhite",
+        "ColorYellow"
+    };
+    public static final Color[] MENU_FONT_COLORS = {
+        new Color(  0,255,255),
+        new Color(  0,  0,  0),
+        new Color(  0,  0,255),
+        new Color(255,  0,255),
+        new Color(128,128,128),
+        new Color(  0,128,  0),
+        new Color(  0,255,  0),
+        new Color(128,  0,  0),
+        new Color(  0,  0,128),
+        new Color(128,128,  0),
+        new Color(128,  0,128),
+        new Color(255,  0,  0),
+        new Color(192,192,192),
+        new Color(  0,128,128),
+        new Color(255,255,255),
+        new Color(255,255,  0)
+    };
 	/* Components */
 	private JSplitPane jspltDisplay;
 	private JTextPane jtpMain;
@@ -136,6 +174,7 @@ public class EkitCore extends JPanel implements ActionListener, KeyListener, Foc
 	private JToolBar jToolBarMain;
 	private JToolBar jToolBarFormat;
 	private JToolBar jToolBarStyles;
+    private int nDefaultFontIndex = -1;
 
 	private JButtonNoFocus jbtnNewHTML;
 	private JButtonNoFocus jbtnNewStyledHTML;
@@ -172,8 +211,10 @@ public class EkitCore extends JPanel implements ActionListener, KeyListener, Foc
 	private JButtonNoFocus jbtnDeleteRow;
 	private JButtonNoFocus jbtnDeleteColumn;
 	private JToggleButtonNoFocus jtbtnViewSource;
+    private JButtonNoFocus jbtnZoomOut, jbtnZoomIn, jbtnZoomReset;
 	private JComboBoxNoFocus jcmbStyleSelector;
 	private JComboBoxNoFocus jcmbFontSelector;
+    protected double zoomFactor = 1.0;
 
 	private Frame frameHandler;
 
@@ -277,8 +318,12 @@ public class EkitCore extends JPanel implements ActionListener, KeyListener, Foc
 	public static final String KEY_TOOL_INSERTCOL = "CI";
 	public static final String KEY_TOOL_DELETEROW = "RD";
 	public static final String KEY_TOOL_DELETECOL = "CD";
+    //SD
+    public static final String KEY_TOOL_ZOOM_OUT = "ZO";
+    public static final String KEY_TOOL_ZOOM_IN = "ZI";
+    public static final String KEY_TOOL_ZOOM_RESET = "ZR";
 
-	public static final String TOOLBAR_DEFAULT_MULTI  = "NW|NS|OP|SV|PR|SP|CT|CP|PS|SP|UN|RE|SP|FN|SP|UC|UM|SP|SR|*|BL|IT|UD|SP|SK|SU|SB|SP|AL|AC|AR|AJ|SP|UL|OL|SP|LK|*|ST|SP|FO";
+	public static final String TOOLBAR_DEFAULT_MULTI  = "NW|NS|OP|SV|PR|SP|CT|CP|PS|SP|UN|RE|SP|FN|SP|UC|UM|SP|SR|SP|ZO|ZR|ZI|*|BL|IT|UD|SP|SK|SU|SB|SP|AL|AC|AR|AJ|SP|UL|OL|SP|LK|*|ST|SP|FO";
 	public static final String TOOLBAR_DEFAULT_SINGLE = "NW|NS|OP|SV|PR|SP|CT|CP|PS|SP|UN|RE|SP|BL|IT|UD|SP|FN|SP|UC|SP|LK|SP|SR|SP|ST";
 
 	public static final int TOOLBAR_SINGLE = 0;
@@ -630,79 +675,86 @@ public class EkitCore extends JPanel implements ActionListener, KeyListener, Foc
 		/* Build the menus */
 		/* FILE Menu */
 		jMenuFile              = new JMenu(Translatrix.getTranslationString("File"));
+        jMenuFile.setMnemonic(KeyEvent.VK_F); //SD
 		htMenus.put(KEY_MENU_FILE, jMenuFile);
-		JMenuItem jmiNew       = new JMenuItem(Translatrix.getTranslationString("NewDocument"));                     jmiNew.setActionCommand(CMD_DOC_NEW);              jmiNew.addActionListener(this);       jmiNew.setAccelerator(KeyStroke.getKeyStroke('N', CTRLKEY, false));      if(showMenuIcons) { jmiNew.setIcon(getEkitIcon("New")); }; jMenuFile.add(jmiNew);
-		JMenuItem jmiNewStyled = new JMenuItem(Translatrix.getTranslationString("NewStyledDocument"));               jmiNewStyled.setActionCommand(CMD_DOC_NEW_STYLED); jmiNewStyled.addActionListener(this); if(showMenuIcons) { jmiNewStyled.setIcon(getEkitIcon("NewStyled")); };   jMenuFile.add(jmiNewStyled);
-		JMenuItem jmiOpenHTML  = new JMenuItem(Translatrix.getTranslationString("OpenDocument") + menuDialog);       jmiOpenHTML.setActionCommand(CMD_DOC_OPEN_HTML);   jmiOpenHTML.addActionListener(this);  jmiOpenHTML.setAccelerator(KeyStroke.getKeyStroke('O', CTRLKEY, false)); if(showMenuIcons) { jmiOpenHTML.setIcon(getEkitIcon("Open")); }; jMenuFile.add(jmiOpenHTML);
-		JMenuItem jmiOpenCSS   = new JMenuItem(Translatrix.getTranslationString("OpenStyle") + menuDialog);          jmiOpenCSS.setActionCommand(CMD_DOC_OPEN_CSS);     jmiOpenCSS.addActionListener(this);   jMenuFile.add(jmiOpenCSS);
-		JMenuItem jmiOpenB64   = new JMenuItem(Translatrix.getTranslationString("OpenBase64Document") + menuDialog); jmiOpenB64.setActionCommand(CMD_DOC_OPEN_BASE64);  jmiOpenB64.addActionListener(this);   jMenuFile.add(jmiOpenB64);
-		jMenuFile.addSeparator();
-		JMenuItem jmiSave      = new JMenuItem(Translatrix.getTranslationString("Save"));                  jmiSave.setActionCommand(CMD_DOC_SAVE);           jmiSave.addActionListener(this);     jmiSave.setAccelerator(KeyStroke.getKeyStroke('S', CTRLKEY, false)); if(showMenuIcons) { jmiSave.setIcon(getEkitIcon("Save")); }; jMenuFile.add(jmiSave);
-		JMenuItem jmiSaveAs    = new JMenuItem(Translatrix.getTranslationString("SaveAs") + menuDialog);   jmiSaveAs.setActionCommand(CMD_DOC_SAVE_AS);      jmiSaveAs.addActionListener(this);   jMenuFile.add(jmiSaveAs);
-		JMenuItem jmiSaveBody  = new JMenuItem(Translatrix.getTranslationString("SaveBody") + menuDialog); jmiSaveBody.setActionCommand(CMD_DOC_SAVE_BODY);  jmiSaveBody.addActionListener(this); jMenuFile.add(jmiSaveBody);
-		JMenuItem jmiSaveRTF   = new JMenuItem(Translatrix.getTranslationString("SaveRTF") + menuDialog);  jmiSaveRTF.setActionCommand(CMD_DOC_SAVE_RTF);    jmiSaveRTF.addActionListener(this);  jMenuFile.add(jmiSaveRTF);
-		JMenuItem jmiSaveB64   = new JMenuItem(Translatrix.getTranslationString("SaveB64") + menuDialog);  jmiSaveB64.setActionCommand(CMD_DOC_SAVE_BASE64); jmiSaveB64.addActionListener(this);  jMenuFile.add(jmiSaveB64);
-		jMenuFile.addSeparator();
-		JMenuItem jmiPrint     = new JMenuItem(Translatrix.getTranslationString("Print")); jmiPrint.setActionCommand(CMD_DOC_PRINT); jmiPrint.addActionListener(this); jMenuFile.add(jmiPrint);
-		jMenuFile.addSeparator();
-		JMenuItem jmiSerialOut = new JMenuItem(Translatrix.getTranslationString("Serialize") + menuDialog);   jmiSerialOut.setActionCommand(CMD_DOC_SERIALIZE_OUT); jmiSerialOut.addActionListener(this); jMenuFile.add(jmiSerialOut);
-		JMenuItem jmiSerialIn  = new JMenuItem(Translatrix.getTranslationString("ReadFromSer") + menuDialog); jmiSerialIn.setActionCommand(CMD_DOC_SERIALIZE_IN);   jmiSerialIn.addActionListener(this);  jMenuFile.add(jmiSerialIn);
-		jMenuFile.addSeparator();
-		JMenuItem jmiExit      = new JMenuItem(Translatrix.getTranslationString("Exit")); jmiExit.setActionCommand(CMD_EXIT); jmiExit.addActionListener(this); jMenuFile.add(jmiExit);
+        JMenuItem jmiNew       = new JMenuItem(Translatrix.getTranslationString("NewDocument"));                     jmiNew.setMnemonic(KeyEvent.VK_N); jmiNew.setActionCommand(CMD_DOC_NEW);              jmiNew.addActionListener(this);       jmiNew.setAccelerator(KeyStroke.getKeyStroke('N', CTRLKEY, false));      if (showMenuIcons) { jmiNew.setIcon(getEkitIcon("New")); }; jMenuFile.add(jmiNew);
+        JMenuItem jmiNewStyled = new JMenuItem(Translatrix.getTranslationString("NewStyledDocument"));               jmiNewStyled.setMnemonic(KeyEvent.VK_T); jmiNewStyled.setActionCommand(CMD_DOC_NEW_STYLED); jmiNewStyled.addActionListener(this); if (showMenuIcons) { jmiNewStyled.setIcon(getEkitIcon("NewStyled")); };   jMenuFile.add(jmiNewStyled);
+        JMenuItem jmiOpenHTML  = new JMenuItem(Translatrix.getTranslationString("OpenDocument") + menuDialog);       jmiOpenHTML.setMnemonic(KeyEvent.VK_O); jmiOpenHTML.setActionCommand(CMD_DOC_OPEN_HTML);   jmiOpenHTML.addActionListener(this);  jmiOpenHTML.setAccelerator(KeyStroke.getKeyStroke('O', CTRLKEY, false)); if (showMenuIcons) { jmiOpenHTML.setIcon(getEkitIcon("Open")); }; jMenuFile.add(jmiOpenHTML);
+        JMenuItem jmiOpenCSS   = new JMenuItem(Translatrix.getTranslationString("OpenStyle") + menuDialog);          jmiOpenCSS.setMnemonic(KeyEvent.VK_Y); jmiOpenCSS.setActionCommand(CMD_DOC_OPEN_CSS);     jmiOpenCSS.addActionListener(this);   jMenuFile.add(jmiOpenCSS);
+        JMenuItem jmiOpenB64   = new JMenuItem(Translatrix.getTranslationString("OpenBase64Document") + menuDialog); jmiOpenB64.setMnemonic(KeyEvent.VK_6); jmiOpenB64.setActionCommand(CMD_DOC_OPEN_BASE64);  jmiOpenB64.addActionListener(this);   jMenuFile.add(jmiOpenB64);
+        jMenuFile.addSeparator();
+        JMenuItem jmiSave      = new JMenuItem(Translatrix.getTranslationString("Save"));                  jmiSave.setMnemonic(KeyEvent.VK_S); jmiSave.setActionCommand(CMD_DOC_SAVE);           jmiSave.addActionListener(this);     jmiSave.setAccelerator(KeyStroke.getKeyStroke('S', CTRLKEY, false)); if (showMenuIcons) { jmiSave.setIcon(getEkitIcon("Save")); }; jMenuFile.add(jmiSave);
+        JMenuItem jmiSaveAs    = new JMenuItem(Translatrix.getTranslationString("SaveAs") + menuDialog);   jmiSaveAs.setMnemonic(KeyEvent.VK_A); jmiSaveAs.setActionCommand(CMD_DOC_SAVE_AS);      jmiSaveAs.addActionListener(this);   jMenuFile.add(jmiSaveAs);
+        JMenuItem jmiSaveBody  = new JMenuItem(Translatrix.getTranslationString("SaveBody") + menuDialog); jmiSaveBody.setMnemonic(KeyEvent.VK_B); jmiSaveBody.setActionCommand(CMD_DOC_SAVE_BODY);  jmiSaveBody.addActionListener(this); jMenuFile.add(jmiSaveBody);
+        JMenuItem jmiSaveRTF   = new JMenuItem(Translatrix.getTranslationString("SaveRTF") + menuDialog);  jmiSaveRTF.setMnemonic(KeyEvent.VK_R); jmiSaveRTF.setActionCommand(CMD_DOC_SAVE_RTF);    jmiSaveRTF.addActionListener(this);  jMenuFile.add(jmiSaveRTF);
+        JMenuItem jmiSaveB64   = new JMenuItem(Translatrix.getTranslationString("SaveB64") + menuDialog);  jmiSaveB64.setMnemonic(KeyEvent.VK_4); jmiSaveB64.setActionCommand(CMD_DOC_SAVE_BASE64); jmiSaveB64.addActionListener(this);  jMenuFile.add(jmiSaveB64);
+        jMenuFile.addSeparator();
+        JMenuItem jmiPrint     = new JMenuItem(Translatrix.getTranslationString("Print")); jmiPrint.setMnemonic(KeyEvent.VK_P); jmiPrint.setActionCommand(CMD_DOC_PRINT); jmiPrint.setAccelerator(KeyStroke.getKeyStroke('P', KeyEvent.CTRL_MASK, false)); jmiPrint.addActionListener(this); jMenuFile.add(jmiPrint);
+        jMenuFile.addSeparator();
+        JMenuItem jmiSerialOut = new JMenuItem(Translatrix.getTranslationString("Serialize") + menuDialog);   jmiSerialOut.setMnemonic(KeyEvent.VK_Z); jmiSerialOut.setActionCommand(CMD_DOC_SERIALIZE_OUT); jmiSerialOut.addActionListener(this); jMenuFile.add(jmiSerialOut);
+        JMenuItem jmiSerialIn  = new JMenuItem(Translatrix.getTranslationString("ReadFromSer") + menuDialog); jmiSerialIn.setMnemonic(KeyEvent.VK_F); jmiSerialIn.setActionCommand(CMD_DOC_SERIALIZE_IN);   jmiSerialIn.addActionListener(this);  jMenuFile.add(jmiSerialIn);
+        jMenuFile.addSeparator();
+        JMenuItem jmiExit      = new JMenuItem(Translatrix.getTranslationString("Exit")); jmiExit.setMnemonic(KeyEvent.VK_X); jmiExit.setActionCommand(CMD_EXIT); jmiExit.addActionListener(this); jMenuFile.add(jmiExit);
 
 		/* EDIT Menu */
 		jMenuEdit            = new JMenu(Translatrix.getTranslationString("Edit"));
+        jMenuEdit.setMnemonic(KeyEvent.VK_E); //SD
 		htMenus.put(KEY_MENU_EDIT, jMenuEdit);
 		if(sysClipboard != null)
 		{
 			// System Clipboard versions of menu commands
-			JMenuItem jmiCut   = new JMenuItem(Translatrix.getTranslationString("Cut"));               jmiCut.setActionCommand(CMD_CLIP_CUT);            jmiCut.addActionListener(this);    jmiCut.setAccelerator(KeyStroke.getKeyStroke('X', CTRLKEY, false));   if(showMenuIcons) { jmiCut.setIcon(getEkitIcon("Cut")); }     jMenuEdit.add(jmiCut);
-			JMenuItem jmiCopy  = new JMenuItem(Translatrix.getTranslationString("Copy"));              jmiCopy.setActionCommand(CMD_CLIP_COPY);          jmiCopy.addActionListener(this);   jmiCopy.setAccelerator(KeyStroke.getKeyStroke('C', CTRLKEY, false));  if(showMenuIcons) { jmiCopy.setIcon(getEkitIcon("Copy")); }   jMenuEdit.add(jmiCopy);
-			JMenuItem jmiPaste = new JMenuItem(Translatrix.getTranslationString("Paste"));             jmiPaste.setActionCommand(CMD_CLIP_PASTE);        jmiPaste.addActionListener(this);  jmiPaste.setAccelerator(KeyStroke.getKeyStroke('V', CTRLKEY, false)); if(showMenuIcons) { jmiPaste.setIcon(getEkitIcon("Paste")); } jMenuEdit.add(jmiPaste);
-			JMenuItem jmiPasteX = new JMenuItem(Translatrix.getTranslationString("PasteUnformatted")); jmiPasteX.setActionCommand(CMD_CLIP_PASTE_PLAIN); jmiPasteX.addActionListener(this); jmiPasteX.setAccelerator(KeyStroke.getKeyStroke('V', CTRLKEY + KeyEvent.SHIFT_MASK, false)); if(showMenuIcons) { jmiPasteX.setIcon(getEkitIcon("PasteUnformatted")); } jMenuEdit.add(jmiPasteX);
+            JMenuItem jmiCut   = new JMenuItem(Translatrix.getTranslationString("Cut"));               jmiCut.setMnemonic(KeyEvent.VK_T); jmiCut.setActionCommand(CMD_CLIP_CUT);            jmiCut.addActionListener(this);    jmiCut.setAccelerator(KeyStroke.getKeyStroke('X', CTRLKEY, false));   if (showMenuIcons) { jmiCut.setIcon(getEkitIcon("Cut")); }     jMenuEdit.add(jmiCut);
+            JMenuItem jmiCopy  = new JMenuItem(Translatrix.getTranslationString("Copy"));              jmiCopy.setMnemonic(KeyEvent.VK_C); jmiCopy.setActionCommand(CMD_CLIP_COPY);          jmiCopy.addActionListener(this);   jmiCopy.setAccelerator(KeyStroke.getKeyStroke('C', CTRLKEY, false));  if (showMenuIcons) { jmiCopy.setIcon(getEkitIcon("Copy")); }   jMenuEdit.add(jmiCopy);
+            JMenuItem jmiPaste = new JMenuItem(Translatrix.getTranslationString("Paste"));             jmiPaste.setMnemonic(KeyEvent.VK_P); jmiPaste.setActionCommand(CMD_CLIP_PASTE);        jmiPaste.addActionListener(this);  jmiPaste.setAccelerator(KeyStroke.getKeyStroke('V', CTRLKEY, false)); if (showMenuIcons) { jmiPaste.setIcon(getEkitIcon("Paste")); } jMenuEdit.add(jmiPaste);
+            JMenuItem jmiPasteX = new JMenuItem(Translatrix.getTranslationString("PasteUnformatted")); jmiPasteX.setMnemonic(KeyEvent.VK_N); jmiPasteX.setActionCommand(CMD_CLIP_PASTE_PLAIN); jmiPasteX.addActionListener(this); jmiPasteX.setAccelerator(KeyStroke.getKeyStroke('V', CTRLKEY + KeyEvent.SHIFT_MASK, false)); if (showMenuIcons) { jmiPasteX.setIcon(getEkitIcon("PasteUnformatted")); } jMenuEdit.add(jmiPasteX);
 		}
 		else
 		{
 			// DefaultEditorKit versions of menu commands
-			JMenuItem jmiCut   = new JMenuItem(new DefaultEditorKit.CutAction());   jmiCut.setText(Translatrix.getTranslationString("Cut"));             jmiCut.setAccelerator(KeyStroke.getKeyStroke('X', CTRLKEY, false));   if(showMenuIcons) { jmiCut.setIcon(getEkitIcon("Cut")); }     jMenuEdit.add(jmiCut);
-			JMenuItem jmiCopy  = new JMenuItem(new DefaultEditorKit.CopyAction());  jmiCopy.setText(Translatrix.getTranslationString("Copy"));           jmiCopy.setAccelerator(KeyStroke.getKeyStroke('C', CTRLKEY, false));  if(showMenuIcons) { jmiCopy.setIcon(getEkitIcon("Copy")); }   jMenuEdit.add(jmiCopy);
-			JMenuItem jmiPaste = new JMenuItem(new DefaultEditorKit.PasteAction()); jmiPaste.setText(Translatrix.getTranslationString("Paste"));         jmiPaste.setAccelerator(KeyStroke.getKeyStroke('V', CTRLKEY, false)); if(showMenuIcons) { jmiPaste.setIcon(getEkitIcon("Paste")); } jMenuEdit.add(jmiPaste);
-			JMenuItem jmiPasteX = new JMenuItem(Translatrix.getTranslationString("PasteUnformatted")); jmiPasteX.setActionCommand(CMD_CLIP_PASTE_PLAIN); jmiPasteX.addActionListener(this); jmiPasteX.setAccelerator(KeyStroke.getKeyStroke('V', CTRLKEY + KeyEvent.SHIFT_MASK, false)); if(showMenuIcons) { jmiPasteX.setIcon(getEkitIcon("PasteUnformatted")); } jMenuEdit.add(jmiPasteX);
+            JMenuItem jmiCut   = new JMenuItem(new DefaultEditorKit.CutAction());   jmiCut.setMnemonic(KeyEvent.VK_T); jmiCut.setText(Translatrix.getTranslationString("Cut"));             jmiCut.setAccelerator(KeyStroke.getKeyStroke('X', CTRLKEY, false));   if (showMenuIcons) { jmiCut.setIcon(getEkitIcon("Cut")); }     jMenuEdit.add(jmiCut);
+            JMenuItem jmiCopy  = new JMenuItem(new DefaultEditorKit.CopyAction());  jmiCopy.setMnemonic(KeyEvent.VK_C); jmiCopy.setText(Translatrix.getTranslationString("Copy"));           jmiCopy.setAccelerator(KeyStroke.getKeyStroke('C', CTRLKEY, false));  if (showMenuIcons) { jmiCopy.setIcon(getEkitIcon("Copy")); }   jMenuEdit.add(jmiCopy);
+            JMenuItem jmiPaste = new JMenuItem(new DefaultEditorKit.PasteAction()); jmiPaste.setMnemonic(KeyEvent.VK_P); jmiPaste.setText(Translatrix.getTranslationString("Paste"));         jmiPaste.setAccelerator(KeyStroke.getKeyStroke('V', CTRLKEY, false)); if (showMenuIcons) { jmiPaste.setIcon(getEkitIcon("Paste")); } jMenuEdit.add(jmiPaste);
+            JMenuItem jmiPasteX = new JMenuItem(Translatrix.getTranslationString("PasteUnformatted")); jmiPasteX.setMnemonic(KeyEvent.VK_N); jmiPasteX.setActionCommand(CMD_CLIP_PASTE_PLAIN); jmiPasteX.addActionListener(this); jmiPasteX.setAccelerator(KeyStroke.getKeyStroke('V', CTRLKEY + KeyEvent.SHIFT_MASK, false)); if (showMenuIcons) { jmiPasteX.setIcon(getEkitIcon("PasteUnformatted")); } jMenuEdit.add(jmiPasteX);
 		}
 		jMenuEdit.addSeparator();
-		JMenuItem jmiUndo    = new JMenuItem(undoAction); jmiUndo.setAccelerator(KeyStroke.getKeyStroke('Z', CTRLKEY, false)); if(showMenuIcons) { jmiUndo.setIcon(getEkitIcon("Undo")); } jMenuEdit.add(jmiUndo);
-		JMenuItem jmiRedo    = new JMenuItem(redoAction); jmiRedo.setAccelerator(KeyStroke.getKeyStroke('Y', CTRLKEY, false)); if(showMenuIcons) { jmiRedo.setIcon(getEkitIcon("Redo")); } jMenuEdit.add(jmiRedo);
+        JMenuItem jmiUndo    = new JMenuItem(undoAction); jmiUndo.setMnemonic(KeyEvent.VK_U); jmiUndo.setAccelerator(KeyStroke.getKeyStroke('Z', CTRLKEY, false)); if (showMenuIcons) { jmiUndo.setIcon(getEkitIcon("Undo")); } jMenuEdit.add(jmiUndo);
+        JMenuItem jmiRedo    = new JMenuItem(redoAction); jmiRedo.setMnemonic(KeyEvent.VK_R); jmiRedo.setAccelerator(KeyStroke.getKeyStroke('Y', CTRLKEY, false)); if (showMenuIcons) { jmiRedo.setIcon(getEkitIcon("Redo")); } jMenuEdit.add(jmiRedo);
 		jMenuEdit.addSeparator();
-		JMenuItem jmiSelAll  = new JMenuItem((Action)actions.get(DefaultEditorKit.selectAllAction));       jmiSelAll.setText(Translatrix.getTranslationString("SelectAll"));        jmiSelAll.setAccelerator(KeyStroke.getKeyStroke('A', CTRLKEY, false)); jMenuEdit.add(jmiSelAll);
-		JMenuItem jmiSelPara = new JMenuItem((Action)actions.get(DefaultEditorKit.selectParagraphAction)); jmiSelPara.setText(Translatrix.getTranslationString("SelectParagraph")); jMenuEdit.add(jmiSelPara);
-		JMenuItem jmiSelLine = new JMenuItem((Action)actions.get(DefaultEditorKit.selectLineAction));      jmiSelLine.setText(Translatrix.getTranslationString("SelectLine"));      jMenuEdit.add(jmiSelLine);
-		JMenuItem jmiSelWord = new JMenuItem((Action)actions.get(DefaultEditorKit.selectWordAction));      jmiSelWord.setText(Translatrix.getTranslationString("SelectWord"));      jMenuEdit.add(jmiSelWord);
+        JMenuItem jmiSelAll  = new JMenuItem((Action)actions.get(DefaultEditorKit.selectAllAction));       jmiSelAll.setMnemonic(KeyEvent.VK_A); jmiSelAll.setText(Translatrix.getTranslationString("SelectAll"));        jmiSelAll.setAccelerator(KeyStroke.getKeyStroke('A', CTRLKEY, false)); jMenuEdit.add(jmiSelAll);
+        JMenuItem jmiSelPara = new JMenuItem((Action)actions.get(DefaultEditorKit.selectParagraphAction)); jmiSelPara.setMnemonic(KeyEvent.VK_P); jmiSelPara.setText(Translatrix.getTranslationString("SelectParagraph")); jMenuEdit.add(jmiSelPara);
+        JMenuItem jmiSelLine = new JMenuItem((Action)actions.get(DefaultEditorKit.selectLineAction));      jmiSelLine.setMnemonic(KeyEvent.VK_L); jmiSelLine.setText(Translatrix.getTranslationString("SelectLine"));      jMenuEdit.add(jmiSelLine);
+        JMenuItem jmiSelWord = new JMenuItem((Action)actions.get(DefaultEditorKit.selectWordAction));      jmiSelWord.setMnemonic(KeyEvent.VK_W); jmiSelWord.setText(Translatrix.getTranslationString("SelectWord"));      jMenuEdit.add(jmiSelWord);
 		jMenuEdit.addSeparator();
-		JMenu jMenuEnterKey  = new JMenu(Translatrix.getTranslationString("EnterKeyMenu"));
-		jcbmiEnterKeyParag   = new JCheckBoxMenuItem(Translatrix.getTranslationString("EnterKeyParag"), !enterIsBreak); jcbmiEnterKeyParag.setActionCommand(CMD_ENTER_PARAGRAPH); jcbmiEnterKeyParag.addActionListener(this); jMenuEnterKey.add(jcbmiEnterKeyParag);
-		jcbmiEnterKeyBreak   = new JCheckBoxMenuItem(Translatrix.getTranslationString("EnterKeyBreak"), enterIsBreak);  jcbmiEnterKeyBreak.setActionCommand(CMD_ENTER_BREAK);     jcbmiEnterKeyBreak.addActionListener(this); jMenuEnterKey.add(jcbmiEnterKeyBreak);
+        JMenu jMenuEnterKey  = new JMenu(Translatrix.getTranslationString("EnterKeyMenu")); jMenuEnterKey.setMnemonic(KeyEvent.VK_I);
+        jcbmiEnterKeyParag   = new JCheckBoxMenuItem(Translatrix.getTranslationString("EnterKeyParag"), !enterIsBreak); jcbmiEnterKeyParag.setMnemonic(KeyEvent.VK_P); jcbmiEnterKeyParag.setActionCommand(CMD_ENTER_PARAGRAPH); jcbmiEnterKeyParag.addActionListener(this); jMenuEnterKey.add(jcbmiEnterKeyParag);
+        jcbmiEnterKeyBreak   = new JCheckBoxMenuItem(Translatrix.getTranslationString("EnterKeyBreak"), enterIsBreak);  jcbmiEnterKeyBreak.setMnemonic(KeyEvent.VK_B); jcbmiEnterKeyBreak.setActionCommand(CMD_ENTER_BREAK);     jcbmiEnterKeyBreak.addActionListener(this); jMenuEnterKey.add(jcbmiEnterKeyBreak);
 		jMenuEdit.add(jMenuEnterKey);
 
 		/* VIEW Menu */
 		jMenuView = new JMenu(Translatrix.getTranslationString("View"));
+        jMenuView.setMnemonic(KeyEvent.VK_V); //SD
 		htMenus.put(KEY_MENU_VIEW, jMenuView);
 		if(includeToolBar)
 		{
 			if(multiBar)
 			{
 				jMenuToolbars = new JMenu(Translatrix.getTranslationString("ViewToolbars"));
+                jMenuToolbars.setMnemonic(KeyEvent.VK_B);
 
 				jcbmiViewToolbarMain = new JCheckBoxMenuItem(Translatrix.getTranslationString("ViewToolbarMain"), false);
+                jcbmiViewToolbarMain.setMnemonic(KeyEvent.VK_M);
 					jcbmiViewToolbarMain.setActionCommand(CMD_TOGGLE_TOOLBAR_MAIN);
 					jcbmiViewToolbarMain.addActionListener(this);
 					jMenuToolbars.add(jcbmiViewToolbarMain);
 
 				jcbmiViewToolbarFormat = new JCheckBoxMenuItem(Translatrix.getTranslationString("ViewToolbarFormat"), false);
+                jcbmiViewToolbarFormat.setMnemonic(KeyEvent.VK_F);
 					jcbmiViewToolbarFormat.setActionCommand(CMD_TOGGLE_TOOLBAR_FORMAT);
 					jcbmiViewToolbarFormat.addActionListener(this);
 					jMenuToolbars.add(jcbmiViewToolbarFormat);
 
 				jcbmiViewToolbarStyles = new JCheckBoxMenuItem(Translatrix.getTranslationString("ViewToolbarStyles"), false);
+                jcbmiViewToolbarStyles.setMnemonic(KeyEvent.VK_S);
 					jcbmiViewToolbarStyles.setActionCommand(CMD_TOGGLE_TOOLBAR_STYLES);
 					jcbmiViewToolbarStyles.addActionListener(this);
 					jMenuToolbars.add(jcbmiViewToolbarStyles);
@@ -712,167 +764,226 @@ public class EkitCore extends JPanel implements ActionListener, KeyListener, Foc
 			else
 			{
 				jcbmiViewToolbar = new JCheckBoxMenuItem(Translatrix.getTranslationString("ViewToolbar"), false);
+                jcbmiViewToolbar.setMnemonic(KeyEvent.VK_B);
 					jcbmiViewToolbar.setActionCommand(CMD_TOGGLE_TOOLBAR_SINGLE);
 					jcbmiViewToolbar.addActionListener(this);
 
 				jMenuView.add(jcbmiViewToolbar);
 			}
 		}
-		jcbmiViewSource = new JCheckBoxMenuItem(Translatrix.getTranslationString("ViewSource"), false);  jcbmiViewSource.setActionCommand(CMD_TOGGLE_SOURCE_VIEW);     jcbmiViewSource.addActionListener(this);  jMenuView.add(jcbmiViewSource);
+        jcbmiViewSource = new JCheckBoxMenuItem(Translatrix.getTranslationString("ViewSource"), false);  jcbmiViewSource.setMnemonic(KeyEvent.VK_S); jcbmiViewSource.setActionCommand(CMD_TOGGLE_SOURCE_VIEW);     jcbmiViewSource.addActionListener(this);  jMenuView.add(jcbmiViewSource);
+        jcbmiViewSource.setAccelerator(KeyStroke.getKeyStroke('S', java.awt.Event.ALT_MASK + java.awt.Event.SHIFT_MASK, false));
 
+        jMenuView.addSeparator();
+        JMenuItem jmiZoomOut = new JMenuItem("Zoom Out"); jmiZoomOut.setMnemonic(KeyEvent.VK_O); jmiZoomOut.setActionCommand("zoom_out"); jmiZoomOut.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_MINUS, java.awt.Event.CTRL_MASK, false));  jmiZoomOut.addActionListener(this);   jMenuView.add(jmiZoomOut);
+        JMenuItem jmiZoomIn = new JMenuItem("Zoom In");   jmiZoomIn.setMnemonic(KeyEvent.VK_I);  jmiZoomIn.setActionCommand("zoom_in");   jmiZoomIn.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_EQUALS, java.awt.Event.CTRL_MASK, false)); jmiZoomIn.addActionListener(this);   jMenuView.add(jmiZoomIn);
+        JMenuItem jmiZoomReset = new JMenuItem("Reset Zoom");   jmiZoomReset.setMnemonic(KeyEvent.VK_R); jmiZoomReset.setActionCommand("zoom_reset"); jmiZoomReset.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_0, java.awt.Event.CTRL_MASK, false)); jmiZoomReset.addActionListener(this);   jMenuView.add(jmiZoomReset);
 		/* FONT Menu */
 		jMenuFont              = new JMenu(Translatrix.getTranslationString("Font"));
+        jMenuFont.setMnemonic(KeyEvent.VK_N); //SD
 		htMenus.put(KEY_MENU_FONT, jMenuFont);
-		JMenuItem jmiBold      = new JMenuItem(actionFontBold);      jmiBold.setText(Translatrix.getTranslationString("FontBold"));           jmiBold.setAccelerator(KeyStroke.getKeyStroke('B', CTRLKEY, false));      if(showMenuIcons) { jmiBold.setIcon(getEkitIcon("Bold")); }           jMenuFont.add(jmiBold);
-		JMenuItem jmiItalic    = new JMenuItem(actionFontItalic);    jmiItalic.setText(Translatrix.getTranslationString("FontItalic"));       jmiItalic.setAccelerator(KeyStroke.getKeyStroke('I', CTRLKEY, false));    if(showMenuIcons) { jmiItalic.setIcon(getEkitIcon("Italic")); }       jMenuFont.add(jmiItalic);
-		JMenuItem jmiUnderline = new JMenuItem(actionFontUnderline); jmiUnderline.setText(Translatrix.getTranslationString("FontUnderline")); jmiUnderline.setAccelerator(KeyStroke.getKeyStroke('U', CTRLKEY, false)); if(showMenuIcons) { jmiUnderline.setIcon(getEkitIcon("Underline")); } jMenuFont.add(jmiUnderline);
-		JMenuItem jmiStrike    = new JMenuItem(actionFontStrike);    jmiStrike.setText(Translatrix.getTranslationString("FontStrike"));                                                                                 if(showMenuIcons) { jmiStrike.setIcon(getEkitIcon("Strike")); }       jMenuFont.add(jmiStrike);
-		JMenuItem jmiSupscript = new JMenuItem(actionFontSuperscript); if(showMenuIcons) { jmiSupscript.setIcon(getEkitIcon("Super")); } jMenuFont.add(jmiSupscript);
-		JMenuItem jmiSubscript = new JMenuItem(actionFontSubscript);   if(showMenuIcons) { jmiSubscript.setIcon(getEkitIcon("Sub")); }   jMenuFont.add(jmiSubscript);
+        JMenuItem jmiBold      = new JMenuItem(actionFontBold);      jmiBold.setMnemonic(KeyEvent.VK_B); jmiBold.setText(Translatrix.getTranslationString("FontBold"));           jmiBold.setAccelerator(KeyStroke.getKeyStroke('B', CTRLKEY, false));      if (showMenuIcons) { jmiBold.setIcon(getEkitIcon("Bold")); }           jMenuFont.add(jmiBold);
+        JMenuItem jmiItalic    = new JMenuItem(actionFontItalic);    jmiItalic.setMnemonic(KeyEvent.VK_I); jmiItalic.setText(Translatrix.getTranslationString("FontItalic"));       jmiItalic.setAccelerator(KeyStroke.getKeyStroke('I', CTRLKEY, false));    if (showMenuIcons) { jmiItalic.setIcon(getEkitIcon("Italic")); }       jMenuFont.add(jmiItalic);
+        JMenuItem jmiUnderline = new JMenuItem(actionFontUnderline); jmiUnderline.setMnemonic(KeyEvent.VK_U); jmiUnderline.setText(Translatrix.getTranslationString("FontUnderline")); jmiUnderline.setAccelerator(KeyStroke.getKeyStroke('U', CTRLKEY, false)); if (showMenuIcons) { jmiUnderline.setIcon(getEkitIcon("Underline")); } jMenuFont.add(jmiUnderline);
+        JMenuItem jmiStrike    = new JMenuItem(actionFontStrike);    jmiStrike.setMnemonic(KeyEvent.VK_S); jmiStrike.setText(Translatrix.getTranslationString("FontStrike"));                                                                                                  if (showMenuIcons) { jmiStrike.setIcon(getEkitIcon("Strike")); }       jMenuFont.add(jmiStrike);
+        JMenuItem jmiSupscript = new JMenuItem(actionFontSuperscript); jmiSupscript.setMnemonic(KeyEvent.VK_P); if (showMenuIcons) { jmiSupscript.setIcon(getEkitIcon("Super")); } jMenuFont.add(jmiSupscript);
+        JMenuItem jmiSubscript = new JMenuItem(actionFontSubscript);   jmiSubscript.setMnemonic(KeyEvent.VK_T); if (showMenuIcons) { jmiSubscript.setIcon(getEkitIcon("Sub")); }   jMenuFont.add(jmiSubscript);
 		jMenuFont.addSeparator();
-		jMenuFont.add(new JMenuItem(new FormatAction(this, Translatrix.getTranslationString("FormatBig"), HTML.Tag.BIG)));
-		jMenuFont.add(new JMenuItem(new FormatAction(this, Translatrix.getTranslationString("FormatSmall"), HTML.Tag.SMALL)));
+        JMenuItem jmiBig = new JMenuItem(new FormatAction(this, Translatrix.getTranslationString("FormatBig"), HTML.Tag.BIG));
+        jmiBig.setMnemonic(KeyEvent.VK_G);
+        jMenuFont.add(jmiBig);
+        JMenuItem jmiSmall = new JMenuItem(new FormatAction(this, Translatrix.getTranslationString("FormatSmall"), HTML.Tag.SMALL));
+        jmiSmall.setMnemonic(KeyEvent.VK_M);
+        jMenuFont.add(jmiSmall);
 		JMenu jMenuFontSize = new JMenu(Translatrix.getTranslationString("FontSize"));
-			jMenuFontSize.add(new JMenuItem(new StyledEditorKit.FontSizeAction(Translatrix.getTranslationString("FontSize1"), 8)));
-			jMenuFontSize.add(new JMenuItem(new StyledEditorKit.FontSizeAction(Translatrix.getTranslationString("FontSize2"), 10)));
-			jMenuFontSize.add(new JMenuItem(new StyledEditorKit.FontSizeAction(Translatrix.getTranslationString("FontSize3"), 12)));
-			jMenuFontSize.add(new JMenuItem(new StyledEditorKit.FontSizeAction(Translatrix.getTranslationString("FontSize4"), 14)));
-			jMenuFontSize.add(new JMenuItem(new StyledEditorKit.FontSizeAction(Translatrix.getTranslationString("FontSize5"), 18)));
-			jMenuFontSize.add(new JMenuItem(new StyledEditorKit.FontSizeAction(Translatrix.getTranslationString("FontSize6"), 24)));
-			jMenuFontSize.add(new JMenuItem(new StyledEditorKit.FontSizeAction(Translatrix.getTranslationString("FontSize7"), 32)));
+            jMenuFontSize.setMnemonic(KeyEvent.VK_Z);
+            int fontSizes[] = { 8, 10, 12, 14, 18, 24, 32 };
+            for (int i = 0, j = 1, cnt = fontSizes.length; i < cnt; ++i, ++j)
+            {
+                int size = fontSizes[i];
+                JMenuItem jmiFontSize = jMenuFontSize.add(new JMenuItem(new StyledEditorKit.FontSizeAction("" + j + ". " + Translatrix.getTranslationString("FontSize" + j), size)));
+                jmiFontSize.setMnemonic(KeyEvent.VK_1 + i);
+                jMenuFontSize.add(jmiFontSize);
+            }
 		jMenuFont.add(jMenuFontSize);
 		jMenuFont.addSeparator();
 		JMenu jMenuFontSub      = new JMenu(Translatrix.getTranslationString("Font"));
-		JMenuItem jmiSelectFont = new JMenuItem(actionSelectFont);                              jmiSelectFont.setText(Translatrix.getTranslationString("FontSelect") + menuDialog); if(showMenuIcons) { jmiSelectFont.setIcon(getEkitIcon("FontFaces")); }      jMenuFontSub.add(jmiSelectFont);
-		JMenuItem jmiSerif      = new JMenuItem((Action)actions.get("font-family-Serif"));      jmiSerif.setText(Translatrix.getTranslationString("FontSerif"));                    jMenuFontSub.add(jmiSerif);
-		JMenuItem jmiSansSerif  = new JMenuItem((Action)actions.get("font-family-SansSerif"));  jmiSansSerif.setText(Translatrix.getTranslationString("FontSansserif"));            jMenuFontSub.add(jmiSansSerif);
-		JMenuItem jmiMonospaced = new JMenuItem((Action)actions.get("font-family-Monospaced")); jmiMonospaced.setText(Translatrix.getTranslationString("FontMonospaced"));          jMenuFontSub.add(jmiMonospaced);
+        jMenuFontSub.setMnemonic(KeyEvent.VK_F);
+        JMenuItem jmiSelectFont = new JMenuItem(actionSelectFont);                              jmiSelectFont.setMnemonic(KeyEvent.VK_F); jmiSelectFont.setText(Translatrix.getTranslationString("FontSelect") + menuDialog); if (showMenuIcons) { jmiSelectFont.setIcon(getEkitIcon("FontFaces")); }      jMenuFontSub.add(jmiSelectFont);
+        JMenuItem jmiSerif      = new JMenuItem((Action)actions.get("font-family-Serif"));      jmiSerif.setMnemonic(KeyEvent.VK_R); jmiSerif.setText(Translatrix.getTranslationString("FontSerif"));                    jMenuFontSub.add(jmiSerif);
+        JMenuItem jmiSansSerif  = new JMenuItem((Action)actions.get("font-family-SansSerif"));  jmiSansSerif.setMnemonic(KeyEvent.VK_S); jmiSansSerif.setText(Translatrix.getTranslationString("FontSansserif"));            jMenuFontSub.add(jmiSansSerif);
+        JMenuItem jmiMonospaced = new JMenuItem((Action)actions.get("font-family-Monospaced")); jmiMonospaced.setMnemonic(KeyEvent.VK_M); jmiMonospaced.setText(Translatrix.getTranslationString("FontMonospaced"));          jMenuFontSub.add(jmiMonospaced);
 		jMenuFont.add(jMenuFontSub);
 		jMenuFont.addSeparator();
 		JMenu jMenuFontColor = new JMenu(Translatrix.getTranslationString("Color"));
+        jMenuFontColor.setMnemonic(KeyEvent.VK_C);
 			Hashtable<String, String> customAttr = new Hashtable<String, String>(); customAttr.put("color", "black");
-			jMenuFontColor.add(new JMenuItem(new CustomAction(this, Translatrix.getTranslationString("CustomColor") + menuDialog, HTML.Tag.FONT, customAttr)));
-			jMenuFontColor.add(new JMenuItem(new StyledEditorKit.ForegroundAction(Translatrix.getTranslationString("ColorAqua"),    new Color(  0,255,255))));
-			jMenuFontColor.add(new JMenuItem(new StyledEditorKit.ForegroundAction(Translatrix.getTranslationString("ColorBlack"),   new Color(  0,  0,  0))));
-			jMenuFontColor.add(new JMenuItem(new StyledEditorKit.ForegroundAction(Translatrix.getTranslationString("ColorBlue"),    new Color(  0,  0,255))));
-			jMenuFontColor.add(new JMenuItem(new StyledEditorKit.ForegroundAction(Translatrix.getTranslationString("ColorFuschia"), new Color(255,  0,255))));
-			jMenuFontColor.add(new JMenuItem(new StyledEditorKit.ForegroundAction(Translatrix.getTranslationString("ColorGray"),    new Color(128,128,128))));
-			jMenuFontColor.add(new JMenuItem(new StyledEditorKit.ForegroundAction(Translatrix.getTranslationString("ColorGreen"),   new Color(  0,128,  0))));
-			jMenuFontColor.add(new JMenuItem(new StyledEditorKit.ForegroundAction(Translatrix.getTranslationString("ColorLime"),    new Color(  0,255,  0))));
-			jMenuFontColor.add(new JMenuItem(new StyledEditorKit.ForegroundAction(Translatrix.getTranslationString("ColorMaroon"),  new Color(128,  0,  0))));
-			jMenuFontColor.add(new JMenuItem(new StyledEditorKit.ForegroundAction(Translatrix.getTranslationString("ColorNavy"),    new Color(  0,  0,128))));
-			jMenuFontColor.add(new JMenuItem(new StyledEditorKit.ForegroundAction(Translatrix.getTranslationString("ColorOlive"),   new Color(128,128,  0))));
-			jMenuFontColor.add(new JMenuItem(new StyledEditorKit.ForegroundAction(Translatrix.getTranslationString("ColorPurple"),  new Color(128,  0,128))));
-			jMenuFontColor.add(new JMenuItem(new StyledEditorKit.ForegroundAction(Translatrix.getTranslationString("ColorRed"),     new Color(255,  0,  0))));
-			jMenuFontColor.add(new JMenuItem(new StyledEditorKit.ForegroundAction(Translatrix.getTranslationString("ColorSilver"),  new Color(192,192,192))));
-			jMenuFontColor.add(new JMenuItem(new StyledEditorKit.ForegroundAction(Translatrix.getTranslationString("ColorTeal"),    new Color(  0,128,128))));
-			jMenuFontColor.add(new JMenuItem(new StyledEditorKit.ForegroundAction(Translatrix.getTranslationString("ColorWhite"),   new Color(255,255,255))));
-			jMenuFontColor.add(new JMenuItem(new StyledEditorKit.ForegroundAction(Translatrix.getTranslationString("ColorYellow"),  new Color(255,255,  0))));
+        JMenuItem jmiCustomColor = new JMenuItem(new CustomAction(this, Translatrix.getTranslationString("CustomColor") + menuDialog, HTML.Tag.FONT, customAttr));
+        jmiCustomColor.setMnemonic(KeyEvent.VK_C);
+        jMenuFontColor.add(jmiCustomColor);
+        DelayedSekForegroundAction actionsSetFontColor[] = new DelayedSekForegroundAction[MENU_FONT_COLOR_NAMES.length];
+        int mneC[] = {
+            KeyEvent.VK_Q,
+            KeyEvent.VK_K,
+            KeyEvent.VK_B,
+            KeyEvent.VK_F,
+            KeyEvent.VK_A,
+            KeyEvent.VK_G,
+            KeyEvent.VK_L,
+            KeyEvent.VK_M,
+            KeyEvent.VK_N,
+            KeyEvent.VK_O,
+            KeyEvent.VK_P,
+            KeyEvent.VK_R,
+            KeyEvent.VK_S,
+            KeyEvent.VK_T,
+            KeyEvent.VK_W,
+            KeyEvent.VK_Y
+        };
+        for (int i = 0; i < MENU_FONT_COLOR_NAMES.length; ++i)
+        {
+            actionsSetFontColor[i] = new DelayedSekForegroundAction(Translatrix.getTranslationString(MENU_FONT_COLOR_NAMES[i]), MENU_FONT_COLORS[i]);
+            JMenuItem jmiColor = new JMenuItem(actionsSetFontColor[i]);
+            jmiColor.setMnemonic(mneC[i]);
+            jMenuFontColor.add(jmiColor);
+        }
 		jMenuFont.add(jMenuFontColor);
 
 		/* FORMAT Menu */
 		jMenuFormat            = new JMenu(Translatrix.getTranslationString("Format"));
+        jMenuFormat.setMnemonic(KeyEvent.VK_O); //SD
 		htMenus.put(KEY_MENU_FORMAT, jMenuFormat);
 		JMenu jMenuFormatAlign = new JMenu(Translatrix.getTranslationString("Align"));
-			JMenuItem jmiAlignLeft = new JMenuItem(actionAlignLeft);           if(showMenuIcons) { jmiAlignLeft.setIcon(getEkitIcon("AlignLeft")); };           jMenuFormatAlign.add(jmiAlignLeft);
-			JMenuItem jmiAlignCenter = new JMenuItem(actionAlignCenter);       if(showMenuIcons) { jmiAlignCenter.setIcon(getEkitIcon("AlignCenter")); };       jMenuFormatAlign.add(jmiAlignCenter);
-			JMenuItem jmiAlignRight = new JMenuItem(actionAlignRight);         if(showMenuIcons) { jmiAlignRight.setIcon(getEkitIcon("AlignRight")); };         jMenuFormatAlign.add(jmiAlignRight);
-			JMenuItem jmiAlignJustified = new JMenuItem(actionAlignJustified); if(showMenuIcons) { jmiAlignJustified.setIcon(getEkitIcon("AlignJustified")); }; jMenuFormatAlign.add(jmiAlignJustified);
+        jMenuFormatAlign.setMnemonic(KeyEvent.VK_A);
+            JMenuItem jmiAlignLeft = new JMenuItem(actionAlignLeft);           jmiAlignLeft.setMnemonic(KeyEvent.VK_L); if (showMenuIcons) { jmiAlignLeft.setIcon(getEkitIcon("AlignLeft")); };           jMenuFormatAlign.add(jmiAlignLeft);
+            JMenuItem jmiAlignCenter = new JMenuItem(actionAlignCenter);       jmiAlignCenter.setMnemonic(KeyEvent.VK_C); if (showMenuIcons) { jmiAlignCenter.setIcon(getEkitIcon("AlignCenter")); };       jMenuFormatAlign.add(jmiAlignCenter);
+            JMenuItem jmiAlignRight = new JMenuItem(actionAlignRight);         jmiAlignRight.setMnemonic(KeyEvent.VK_R); if (showMenuIcons) { jmiAlignRight.setIcon(getEkitIcon("AlignRight")); };         jMenuFormatAlign.add(jmiAlignRight);
+            JMenuItem jmiAlignJustified = new JMenuItem(actionAlignJustified); jmiAlignJustified.setMnemonic(KeyEvent.VK_J); if (showMenuIcons) { jmiAlignJustified.setIcon(getEkitIcon("AlignJustified")); }; jMenuFormatAlign.add(jmiAlignJustified);
 		jMenuFormat.add(jMenuFormatAlign);
 		jMenuFormat.addSeparator();
 		JMenu jMenuFormatHeading = new JMenu(Translatrix.getTranslationString("Heading"));
-			jMenuFormatHeading.add(new JMenuItem(new FormatAction(this, Translatrix.getTranslationString("Heading1"), HTML.Tag.H1)));
-			jMenuFormatHeading.add(new JMenuItem(new FormatAction(this, Translatrix.getTranslationString("Heading2"), HTML.Tag.H2)));
-			jMenuFormatHeading.add(new JMenuItem(new FormatAction(this, Translatrix.getTranslationString("Heading3"), HTML.Tag.H3)));
-			jMenuFormatHeading.add(new JMenuItem(new FormatAction(this, Translatrix.getTranslationString("Heading4"), HTML.Tag.H4)));
-			jMenuFormatHeading.add(new JMenuItem(new FormatAction(this, Translatrix.getTranslationString("Heading5"), HTML.Tag.H5)));
-			jMenuFormatHeading.add(new JMenuItem(new FormatAction(this, Translatrix.getTranslationString("Heading6"), HTML.Tag.H6)));
+        jMenuFormatHeading.setMnemonic(KeyEvent.VK_H);
+            JMenuItem jmiHeading = new JMenuItem(new FormatAction(this, Translatrix.getTranslationString("Heading1"), HTML.Tag.H1));
+            jMenuFormatHeading.add(jmiHeading); jmiHeading.setMnemonic(KeyEvent.VK_1);
+            jmiHeading = new JMenuItem(new FormatAction(this, Translatrix.getTranslationString("Heading2"), HTML.Tag.H2));
+            jMenuFormatHeading.add(jmiHeading); jmiHeading.setMnemonic(KeyEvent.VK_2);
+            jmiHeading = new JMenuItem(new FormatAction(this, Translatrix.getTranslationString("Heading3"), HTML.Tag.H3));
+            jMenuFormatHeading.add(jmiHeading); jmiHeading.setMnemonic(KeyEvent.VK_3);
+            jmiHeading = new JMenuItem(new FormatAction(this, Translatrix.getTranslationString("Heading4"), HTML.Tag.H4));
+            jMenuFormatHeading.add(jmiHeading); jmiHeading.setMnemonic(KeyEvent.VK_4);
+            jmiHeading = new JMenuItem(new FormatAction(this, Translatrix.getTranslationString("Heading5"), HTML.Tag.H5));
+            jMenuFormatHeading.add(jmiHeading); jmiHeading.setMnemonic(KeyEvent.VK_5);
+            jmiHeading = new JMenuItem(new FormatAction(this, Translatrix.getTranslationString("Heading6"), HTML.Tag.H6));
+            jMenuFormatHeading.add(jmiHeading); jmiHeading.setMnemonic(KeyEvent.VK_6);
 		jMenuFormat.add(jMenuFormatHeading);
 		jMenuFormat.addSeparator();
-		JMenuItem jmiUList = new JMenuItem(actionListUnordered); if(showMenuIcons) { jmiUList.setIcon(getEkitIcon("UList")); } jMenuFormat.add(jmiUList);
-		JMenuItem jmiOList = new JMenuItem(actionListOrdered);   if(showMenuIcons) { jmiOList.setIcon(getEkitIcon("OList")); } jMenuFormat.add(jmiOList);
-		jMenuFormat.add(new JMenuItem(new FormatAction(this, Translatrix.getTranslationString("ListItem"), HTML.Tag.LI)));
+        JMenuItem jmiUList = new JMenuItem(actionListUnordered); jmiUList.setMnemonic(KeyEvent.VK_U); if (showMenuIcons) { jmiUList.setIcon(getEkitIcon("UList")); } jMenuFormat.add(jmiUList);
+        JMenuItem jmiOList = new JMenuItem(actionListOrdered);   jmiOList.setMnemonic(KeyEvent.VK_O); if (showMenuIcons) { jmiOList.setIcon(getEkitIcon("OList")); } jMenuFormat.add(jmiOList);
+        JMenuItem jmiFmt = new JMenuItem(new FormatAction(this, Translatrix.getTranslationString("ListItem"), HTML.Tag.LI));
+        jmiFmt.setMnemonic(KeyEvent.VK_L);
+        jMenuFormat.add(jmiFmt);
 		jMenuFormat.addSeparator();
-		jMenuFormat.add(new JMenuItem(new FormatAction(this, Translatrix.getTranslationString("FormatBlockquote"), HTML.Tag.BLOCKQUOTE)));
-		jMenuFormat.add(new JMenuItem(new FormatAction(this, Translatrix.getTranslationString("FormatPre"), HTML.Tag.PRE)));
-		jMenuFormat.add(new JMenuItem(new FormatAction(this, Translatrix.getTranslationString("FormatStrong"), HTML.Tag.STRONG)));
-		jMenuFormat.add(new JMenuItem(new FormatAction(this, Translatrix.getTranslationString("FormatEmphasis"), HTML.Tag.EM)));
-		jMenuFormat.add(new JMenuItem(new FormatAction(this, Translatrix.getTranslationString("FormatTT"), HTML.Tag.TT)));
-		jMenuFormat.add(new JMenuItem(new FormatAction(this, Translatrix.getTranslationString("FormatSpan"), HTML.Tag.SPAN)));
+        jmiFmt = new JMenuItem(new FormatAction(this, Translatrix.getTranslationString("FormatBlockquote"), HTML.Tag.BLOCKQUOTE));
+        jmiFmt.setMnemonic(KeyEvent.VK_B);
+        jMenuFormat.add(jmiFmt);
+        jmiFmt = new JMenuItem(new FormatAction(this, Translatrix.getTranslationString("FormatPre"), HTML.Tag.PRE));
+        jmiFmt.setMnemonic(KeyEvent.VK_P);
+        jMenuFormat.add(jmiFmt);
+        jmiFmt = new JMenuItem(new FormatAction(this, Translatrix.getTranslationString("FormatStrong"), HTML.Tag.STRONG));
+        jmiFmt.setMnemonic(KeyEvent.VK_S);
+        jMenuFormat.add(jmiFmt);
+        jmiFmt = new JMenuItem(new FormatAction(this, Translatrix.getTranslationString("FormatEmphasis"), HTML.Tag.EM));
+        jmiFmt.setMnemonic(KeyEvent.VK_E);
+        jMenuFormat.add(jmiFmt);
+        jmiFmt = new JMenuItem(new FormatAction(this, Translatrix.getTranslationString("FormatTT"), HTML.Tag.TT));
+        jmiFmt.setMnemonic(KeyEvent.VK_T);
+        jMenuFormat.add(jmiFmt);
+        jmiFmt = new JMenuItem(new FormatAction(this, Translatrix.getTranslationString("FormatSpan"), HTML.Tag.SPAN));
+        jmiFmt.setMnemonic(KeyEvent.VK_N);
+        jMenuFormat.add(jmiFmt);
 
 		/* INSERT Menu */
 		jMenuInsert               = new JMenu(Translatrix.getTranslationString("Insert"));
+        jMenuInsert.setMnemonic(KeyEvent.VK_I); //SD
 		htMenus.put(KEY_MENU_INSERT, jMenuInsert);
-		JMenuItem jmiInsertAnchor = new JMenuItem(actionInsertAnchor); if(showMenuIcons) { jmiInsertAnchor.setIcon(getEkitIcon("Anchor")); }; jMenuInsert.add(jmiInsertAnchor);
-		JMenuItem jmiBreak        = new JMenuItem(Translatrix.getTranslationString("InsertBreak"));  jmiBreak.setActionCommand(CMD_INSERT_BREAK);   jmiBreak.addActionListener(this);   jmiBreak.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, KeyEvent.SHIFT_MASK, false)); jMenuInsert.add(jmiBreak);
-		JMenuItem jmiNBSP         = new JMenuItem(Translatrix.getTranslationString("InsertNBSP"));   jmiNBSP.setActionCommand(CMD_INSERT_NBSP);     jmiNBSP.addActionListener(this);    jmiNBSP.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, KeyEvent.SHIFT_MASK, false)); jMenuInsert.add(jmiNBSP);
-		JMenu jMenuUnicode        = new JMenu(Translatrix.getTranslationString("InsertUnicodeCharacter")); if(showMenuIcons) { jMenuUnicode.setIcon(getEkitIcon("Unicode")); };
-		JMenuItem jmiUnicodeAll   = new JMenuItem(Translatrix.getTranslationString("InsertUnicodeCharacterAll") + menuDialog);  if(showMenuIcons) { jmiUnicodeAll.setIcon(getEkitIcon("Unicode")); }; jmiUnicodeAll.setActionCommand(CMD_INSERT_UNICODE_CHAR);      jmiUnicodeAll.addActionListener(this);   jMenuUnicode.add(jmiUnicodeAll);
-		JMenuItem jmiUnicodeMath  = new JMenuItem(Translatrix.getTranslationString("InsertUnicodeCharacterMath") + menuDialog); if(showMenuIcons) { jmiUnicodeMath.setIcon(getEkitIcon("Math")); };   jmiUnicodeMath.setActionCommand(CMD_INSERT_UNICODE_MATH); jmiUnicodeMath.addActionListener(this);  jMenuUnicode.add(jmiUnicodeMath);
-		JMenuItem jmiUnicodeDraw  = new JMenuItem(Translatrix.getTranslationString("InsertUnicodeCharacterDraw") + menuDialog); if(showMenuIcons) { jmiUnicodeDraw.setIcon(getEkitIcon("Draw")); };   jmiUnicodeDraw.setActionCommand(CMD_INSERT_UNICODE_DRAW); jmiUnicodeDraw.addActionListener(this);  jMenuUnicode.add(jmiUnicodeDraw);
-		JMenuItem jmiUnicodeDing  = new JMenuItem(Translatrix.getTranslationString("InsertUnicodeCharacterDing") + menuDialog); jmiUnicodeDing.setActionCommand(CMD_INSERT_UNICODE_DING); jmiUnicodeDing.addActionListener(this);  jMenuUnicode.add(jmiUnicodeDing);
-		JMenuItem jmiUnicodeSigs  = new JMenuItem(Translatrix.getTranslationString("InsertUnicodeCharacterSigs") + menuDialog); jmiUnicodeSigs.setActionCommand(CMD_INSERT_UNICODE_SIGS); jmiUnicodeSigs.addActionListener(this);  jMenuUnicode.add(jmiUnicodeSigs);
-		JMenuItem jmiUnicodeSpec  = new JMenuItem(Translatrix.getTranslationString("InsertUnicodeCharacterSpec") + menuDialog); jmiUnicodeSpec.setActionCommand(CMD_INSERT_UNICODE_SPEC); jmiUnicodeSpec.addActionListener(this);  jMenuUnicode.add(jmiUnicodeSpec);
+        JMenuItem jmiInsertAnchor = new JMenuItem(actionInsertAnchor); jmiInsertAnchor.setMnemonic(KeyEvent.VK_A); if (showMenuIcons) { jmiInsertAnchor.setIcon(getEkitIcon("Anchor")); }; jMenuInsert.add(jmiInsertAnchor);
+        JMenuItem jmiBreak        = new JMenuItem(Translatrix.getTranslationString("InsertBreak"));  jmiBreak.setMnemonic(KeyEvent.VK_B); jmiBreak.setActionCommand(CMD_INSERT_BREAK);   jmiBreak.addActionListener(this);   jmiBreak.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, KeyEvent.SHIFT_MASK, false)); jMenuInsert.add(jmiBreak);
+        JMenuItem jmiNBSP         = new JMenuItem(Translatrix.getTranslationString("InsertNBSP"));   jmiNBSP.setMnemonic(KeyEvent.VK_N); jmiNBSP.setActionCommand(CMD_INSERT_NBSP);     jmiNBSP.addActionListener(this);    jmiNBSP.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, KeyEvent.SHIFT_MASK, false)); jMenuInsert.add(jmiNBSP);
+        JMenu jMenuUnicode        = new JMenu(Translatrix.getTranslationString("InsertUnicodeCharacter")); jMenuUnicode.setMnemonic(KeyEvent.VK_U); if (showMenuIcons) { jMenuUnicode.setIcon(getEkitIcon("Unicode")); };
+        JMenuItem jmiUnicodeAll   = new JMenuItem(Translatrix.getTranslationString("InsertUnicodeCharacterAll") + menuDialog);  jmiUnicodeAll.setMnemonic(KeyEvent.VK_A); if (showMenuIcons) { jmiUnicodeAll.setIcon(getEkitIcon("Unicode")); }; jmiUnicodeAll.setActionCommand(CMD_INSERT_UNICODE_CHAR);      jmiUnicodeAll.addActionListener(this);   jMenuUnicode.add(jmiUnicodeAll);
+        JMenuItem jmiUnicodeMath  = new JMenuItem(Translatrix.getTranslationString("InsertUnicodeCharacterMath") + menuDialog); jmiUnicodeMath.setMnemonic(KeyEvent.VK_M); if (showMenuIcons) { jmiUnicodeMath.setIcon(getEkitIcon("Math")); };   jmiUnicodeMath.setActionCommand(CMD_INSERT_UNICODE_MATH); jmiUnicodeMath.addActionListener(this);  jMenuUnicode.add(jmiUnicodeMath);
+        JMenuItem jmiUnicodeDraw  = new JMenuItem(Translatrix.getTranslationString("InsertUnicodeCharacterDraw") + menuDialog); jmiUnicodeDraw.setMnemonic(KeyEvent.VK_D); if (showMenuIcons) { jmiUnicodeDraw.setIcon(getEkitIcon("Draw")); };   jmiUnicodeDraw.setActionCommand(CMD_INSERT_UNICODE_DRAW); jmiUnicodeDraw.addActionListener(this);  jMenuUnicode.add(jmiUnicodeDraw);
+        JMenuItem jmiUnicodeDing  = new JMenuItem(Translatrix.getTranslationString("InsertUnicodeCharacterDing") + menuDialog); jmiUnicodeDing.setMnemonic(KeyEvent.VK_N); jmiUnicodeDing.setActionCommand(CMD_INSERT_UNICODE_DING); jmiUnicodeDing.addActionListener(this);  jMenuUnicode.add(jmiUnicodeDing);
+        JMenuItem jmiUnicodeSigs  = new JMenuItem(Translatrix.getTranslationString("InsertUnicodeCharacterSigs") + menuDialog); jmiUnicodeSigs.setMnemonic(KeyEvent.VK_G); jmiUnicodeSigs.setActionCommand(CMD_INSERT_UNICODE_SIGS); jmiUnicodeSigs.addActionListener(this);  jMenuUnicode.add(jmiUnicodeSigs);
+        JMenuItem jmiUnicodeSpec  = new JMenuItem(Translatrix.getTranslationString("InsertUnicodeCharacterSpec") + menuDialog); jmiUnicodeSpec.setMnemonic(KeyEvent.VK_S); jmiUnicodeSpec.setActionCommand(CMD_INSERT_UNICODE_SPEC); jmiUnicodeSpec.addActionListener(this);  jMenuUnicode.add(jmiUnicodeSpec);
 		jMenuInsert.add(jMenuUnicode);
-		JMenuItem jmiHRule        = new JMenuItem(Translatrix.getTranslationString("InsertHorizontalRule")); jmiHRule.setActionCommand(CMD_INSERT_HR); jmiHRule.addActionListener(this); jMenuInsert.add(jmiHRule);
+        JMenuItem jmiHRule        = new JMenuItem(Translatrix.getTranslationString("InsertHorizontalRule")); jmiHRule.setMnemonic(KeyEvent.VK_H); jmiHRule.setActionCommand(CMD_INSERT_HR); jmiHRule.addActionListener(this); jMenuInsert.add(jmiHRule);
 		jMenuInsert.addSeparator();
 		if(!isParentApplet)
 		{
-			JMenuItem jmiImageLocal = new JMenuItem(Translatrix.getTranslationString("InsertLocalImage") + menuDialog);  jmiImageLocal.setActionCommand(CMD_INSERT_IMAGE_LOCAL); jmiImageLocal.addActionListener(this); jMenuInsert.add(jmiImageLocal);
+            JMenuItem jmiImageLocal   = new JMenuItem(Translatrix.getTranslationString("InsertLocalImage") + menuDialog); jmiImageLocal.setMnemonic(KeyEvent.VK_F); jmiImageLocal.setActionCommand(CMD_INSERT_IMAGE_LOCAL); jmiImageLocal.addActionListener(this); jMenuInsert.add(jmiImageLocal);
+			jmiImageLocal.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0, false)); //SD
 		}
-		JMenuItem jmiImageURL     = new JMenuItem(Translatrix.getTranslationString("InsertURLImage") + menuDialog);    jmiImageURL.setActionCommand(CMD_INSERT_IMAGE_URL);     jmiImageURL.addActionListener(this);   jMenuInsert.add(jmiImageURL);
+        JMenuItem jmiImageURL     = new JMenuItem(Translatrix.getTranslationString("InsertURLImage") + menuDialog); jmiImageURL.setMnemonic(KeyEvent.VK_L); jmiImageURL.setActionCommand(CMD_INSERT_IMAGE_URL);     jmiImageURL.addActionListener(this);   jMenuInsert.add(jmiImageURL);
+        jmiImageURL.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_M, java.awt.Event.CTRL_MASK, false)); //SD
 
 		/* TABLE Menu */
 		jMenuTable              = new JMenu(Translatrix.getTranslationString("Table"));
+        jMenuTable.setMnemonic(KeyEvent.VK_A); //SD
 		htMenus.put(KEY_MENU_TABLE, jMenuTable);
-		JMenuItem jmiTable       = new JMenuItem(Translatrix.getTranslationString("InsertTable") + menuDialog); if(showMenuIcons) { jmiTable.setIcon(getEkitIcon("TableCreate")); }; jmiTable.setActionCommand(CMD_TABLE_INSERT);             jmiTable.addActionListener(this);       jMenuTable.add(jmiTable);
-		jMenuTable.addSeparator();
-		JMenuItem jmiEditTable	 = new JMenuItem(Translatrix.getTranslationString("TableEdit") + menuDialog); if(showMenuIcons) { jmiEditTable.setIcon(getEkitIcon("TableEdit")); } jmiEditTable.setActionCommand(CMD_TABLE_EDIT);	jmiEditTable.addActionListener(this);	jMenuTable.add(jmiEditTable);
-		JMenuItem jmiEditCell	 = new JMenuItem(Translatrix.getTranslationString("TableCellEdit") + menuDialog); if(showMenuIcons) { jmiEditCell.setIcon(getEkitIcon("CellEdit")); } jmiEditCell.setActionCommand(CMD_TABLE_CELL_EDIT);	jmiEditCell.addActionListener(this);	jMenuTable.add(jmiEditCell);
-		jMenuTable.addSeparator();
-		JMenuItem jmiTableRow    = new JMenuItem(Translatrix.getTranslationString("InsertTableRow"));           if(showMenuIcons) { jmiTableRow.setIcon(getEkitIcon("InsertRow")); }; jmiTableRow.setActionCommand(CMD_TABLE_ROW_INSERT);       jmiTableRow.addActionListener(this);    jMenuTable.add(jmiTableRow);
-		JMenuItem jmiTableCol    = new JMenuItem(Translatrix.getTranslationString("InsertTableColumn"));        if(showMenuIcons) { jmiTableCol.setIcon(getEkitIcon("InsertColumn")); }; jmiTableCol.setActionCommand(CMD_TABLE_COLUMN_INSERT);    jmiTableCol.addActionListener(this);    jMenuTable.add(jmiTableCol);
-		jMenuTable.addSeparator();
-		JMenuItem jmiTableRowDel = new JMenuItem(Translatrix.getTranslationString("DeleteTableRow"));           if(showMenuIcons) { jmiTableRowDel.setIcon(getEkitIcon("DeleteRow")); }; jmiTableRowDel.setActionCommand(CMD_TABLE_ROW_DELETE);    jmiTableRowDel.addActionListener(this); jMenuTable.add(jmiTableRowDel);
-		JMenuItem jmiTableColDel = new JMenuItem(Translatrix.getTranslationString("DeleteTableColumn"));        if(showMenuIcons) { jmiTableColDel.setIcon(getEkitIcon("DeleteColumn")); }; jmiTableColDel.setActionCommand(CMD_TABLE_COLUMN_DELETE); jmiTableColDel.addActionListener(this); jMenuTable.add(jmiTableColDel);
+        JMenuItem jmiTable       = new JMenuItem(Translatrix.getTranslationString("InsertTable") + menuDialog); jmiTable.setMnemonic(KeyEvent.VK_A); if (showMenuIcons) { jmiTable.setIcon(getEkitIcon("TableCreate")); }; jmiTable.setActionCommand(CMD_TABLE_INSERT);             jmiTable.addActionListener(this);       jMenuTable.add(jmiTable);
+        jMenuTable.addSeparator();
+        JMenuItem jmiEditTable   = new JMenuItem(Translatrix.getTranslationString("TableEdit") + menuDialog);   jmiEditTable.setMnemonic(KeyEvent.VK_T); if (showMenuIcons) { jmiEditTable.setIcon(getEkitIcon("TableEdit")); } jmiEditTable.setActionCommand(CMD_TABLE_EDIT); jmiEditTable.addActionListener(this);   jMenuTable.add(jmiEditTable);
+        JMenuItem jmiEditCell    = new JMenuItem(Translatrix.getTranslationString("TableCellEdit") + menuDialog); jmiEditCell.setMnemonic(KeyEvent.VK_E); if (showMenuIcons) { jmiEditCell.setIcon(getEkitIcon("CellEdit")); } jmiEditCell.setActionCommand(CMD_TABLE_CELL_EDIT);   jmiEditCell.addActionListener(this);    jMenuTable.add(jmiEditCell);
+        jMenuTable.addSeparator();
+        JMenuItem jmiTableRow    = new JMenuItem(Translatrix.getTranslationString("InsertTableRow"));           jmiTableRow.setMnemonic(KeyEvent.VK_R); if (showMenuIcons) { jmiTableRow.setIcon(getEkitIcon("InsertRow")); }; jmiTableRow.setActionCommand(CMD_TABLE_ROW_INSERT);       jmiTableRow.addActionListener(this);    jMenuTable.add(jmiTableRow);
+        JMenuItem jmiTableCol    = new JMenuItem(Translatrix.getTranslationString("InsertTableColumn"));        jmiTableCol.setMnemonic(KeyEvent.VK_C); if (showMenuIcons) { jmiTableCol.setIcon(getEkitIcon("InsertColumn")); }; jmiTableCol.setActionCommand(CMD_TABLE_COLUMN_INSERT);    jmiTableCol.addActionListener(this);    jMenuTable.add(jmiTableCol);
+        jMenuTable.addSeparator();
+        JMenuItem jmiTableRowDel = new JMenuItem(Translatrix.getTranslationString("DeleteTableRow"));           jmiTableRowDel.setMnemonic(KeyEvent.VK_O); if (showMenuIcons) { jmiTableRowDel.setIcon(getEkitIcon("DeleteRow")); }; jmiTableRowDel.setActionCommand(CMD_TABLE_ROW_DELETE);    jmiTableRowDel.addActionListener(this); jMenuTable.add(jmiTableRowDel);
+        JMenuItem jmiTableColDel = new JMenuItem(Translatrix.getTranslationString("DeleteTableColumn"));        jmiTableColDel.setMnemonic(KeyEvent.VK_L); if (showMenuIcons) { jmiTableColDel.setIcon(getEkitIcon("DeleteColumn")); }; jmiTableColDel.setActionCommand(CMD_TABLE_COLUMN_DELETE); jmiTableColDel.addActionListener(this); jMenuTable.add(jmiTableColDel);
 
 		/* FORMS Menu */
 		jMenuForms                    = new JMenu(Translatrix.getTranslationString("Forms"));
+        jMenuForms.setMnemonic(KeyEvent.VK_M); //SD
 		htMenus.put(KEY_MENU_FORMS, jMenuForms);
-		JMenuItem jmiFormInsertForm   = new JMenuItem(Translatrix.getTranslationString("FormInsertForm")); jmiFormInsertForm.setActionCommand(CMD_FORM_INSERT);     jmiFormInsertForm.addActionListener(this); jMenuForms.add(jmiFormInsertForm);
+        JMenuItem jmiFormInsertForm   = new JMenuItem(Translatrix.getTranslationString("FormInsertForm")); jmiFormInsertForm.setActionCommand(CMD_FORM_INSERT);   jmiFormInsertForm.setMnemonic(KeyEvent.VK_M); jmiFormInsertForm.addActionListener(this); jMenuForms.add(jmiFormInsertForm);
 		jMenuForms.addSeparator();
-		JMenuItem jmiFormTextfield    = new JMenuItem(Translatrix.getTranslationString("FormTextfield"));  jmiFormTextfield.setActionCommand(CMD_FORM_TEXTFIELD); jmiFormTextfield.addActionListener(this);  jMenuForms.add(jmiFormTextfield);
-		JMenuItem jmiFormTextarea     = new JMenuItem(Translatrix.getTranslationString("FormTextarea"));   jmiFormTextarea.setActionCommand(CMD_FORM_TEXTAREA);   jmiFormTextarea.addActionListener(this);   jMenuForms.add(jmiFormTextarea);
-		JMenuItem jmiFormCheckbox     = new JMenuItem(Translatrix.getTranslationString("FormCheckbox"));   jmiFormCheckbox.setActionCommand(CMD_FORM_CHECKBOX);   jmiFormCheckbox.addActionListener(this);   jMenuForms.add(jmiFormCheckbox);
-		JMenuItem jmiFormRadio        = new JMenuItem(Translatrix.getTranslationString("FormRadio"));      jmiFormRadio.setActionCommand(CMD_FORM_RADIO);   jmiFormRadio.addActionListener(this);      jMenuForms.add(jmiFormRadio);
-		JMenuItem jmiFormPassword     = new JMenuItem(Translatrix.getTranslationString("FormPassword"));   jmiFormPassword.setActionCommand(CMD_FORM_PASSWORD);   jmiFormPassword.addActionListener(this);   jMenuForms.add(jmiFormPassword);
+        JMenuItem jmiFormTextfield    = new JMenuItem(Translatrix.getTranslationString("FormTextfield"));  jmiFormTextfield.setActionCommand(CMD_FORM_TEXTFIELD); jmiFormTextfield.setMnemonic(KeyEvent.VK_T); jmiFormTextfield.addActionListener(this);  jMenuForms.add(jmiFormTextfield);
+        JMenuItem jmiFormTextarea     = new JMenuItem(Translatrix.getTranslationString("FormTextarea"));   jmiFormTextarea.setActionCommand(CMD_FORM_TEXTAREA);   jmiFormTextarea.setMnemonic(KeyEvent.VK_A); jmiFormTextarea.addActionListener(this);   jMenuForms.add(jmiFormTextarea);
+        JMenuItem jmiFormCheckbox     = new JMenuItem(Translatrix.getTranslationString("FormCheckbox"));   jmiFormCheckbox.setActionCommand(CMD_FORM_CHECKBOX);   jmiFormCheckbox.setMnemonic(KeyEvent.VK_C); jmiFormCheckbox.addActionListener(this);   jMenuForms.add(jmiFormCheckbox);
+        JMenuItem jmiFormRadio        = new JMenuItem(Translatrix.getTranslationString("FormRadio"));      jmiFormRadio.setActionCommand(CMD_FORM_RADIO);         jmiFormRadio.setMnemonic(KeyEvent.VK_R);    jmiFormRadio.addActionListener(this);      jMenuForms.add(jmiFormRadio);
+        JMenuItem jmiFormPassword     = new JMenuItem(Translatrix.getTranslationString("FormPassword"));   jmiFormPassword.setActionCommand(CMD_FORM_PASSWORD);   jmiFormPassword.setMnemonic(KeyEvent.VK_P); jmiFormPassword.addActionListener(this);   jMenuForms.add(jmiFormPassword);
 		jMenuForms.addSeparator();
-		JMenuItem jmiFormButton       = new JMenuItem(Translatrix.getTranslationString("FormButton"));       jmiFormButton.setActionCommand(CMD_FORM_BUTTON);             jmiFormButton.addActionListener(this);       jMenuForms.add(jmiFormButton);
-		JMenuItem jmiFormButtonSubmit = new JMenuItem(Translatrix.getTranslationString("FormButtonSubmit")); jmiFormButtonSubmit.setActionCommand(CMD_FORM_SUBMIT); jmiFormButtonSubmit.addActionListener(this); jMenuForms.add(jmiFormButtonSubmit);
-		JMenuItem jmiFormButtonReset  = new JMenuItem(Translatrix.getTranslationString("FormButtonReset"));  jmiFormButtonReset.setActionCommand(CMD_FORM_RESET);   jmiFormButtonReset.addActionListener(this);  jMenuForms.add(jmiFormButtonReset);
+        JMenuItem jmiFormButton       = new JMenuItem(Translatrix.getTranslationString("FormButton"));       jmiFormButton.setActionCommand(CMD_FORM_BUTTON);       jmiFormButton.setMnemonic(KeyEvent.VK_B); jmiFormButton.addActionListener(this);       jMenuForms.add(jmiFormButton);
+        JMenuItem jmiFormButtonSubmit = new JMenuItem(Translatrix.getTranslationString("FormButtonSubmit")); jmiFormButtonSubmit.setActionCommand(CMD_FORM_SUBMIT); jmiFormButtonSubmit.setMnemonic(KeyEvent.VK_S); jmiFormButtonSubmit.addActionListener(this); jMenuForms.add(jmiFormButtonSubmit);
+        JMenuItem jmiFormButtonReset  = new JMenuItem(Translatrix.getTranslationString("FormButtonReset"));  jmiFormButtonReset.setActionCommand(CMD_FORM_RESET);   jmiFormButtonReset.setMnemonic(KeyEvent.VK_R); jmiFormButtonReset.addActionListener(this);  jMenuForms.add(jmiFormButtonReset);
 
 		/* TOOLS Menu */
 		if(hasSpellChecker)
 		{
 			jMenuTools = new JMenu(Translatrix.getTranslationString("Tools"));
+            jMenuTools.setMnemonic(KeyEvent.VK_T); //SD
 			htMenus.put(KEY_MENU_TOOLS, jMenuTools);
-			JMenuItem jmiSpellcheck = new JMenuItem(Translatrix.getTranslationString("ToolSpellcheck")); jmiSpellcheck.setActionCommand(CMD_SPELLCHECK); jmiSpellcheck.addActionListener(this); jMenuTools.add(jmiSpellcheck);
+            JMenuItem jmiSpellcheck = new JMenuItem(Translatrix.getTranslationString("ToolSpellcheck")); jmiSpellcheck.setMnemonic(KeyEvent.VK_S); jmiSpellcheck.setActionCommand(CMD_SPELLCHECK); jmiSpellcheck.addActionListener(this); jMenuTools.add(jmiSpellcheck);
 		}
 
 		/* SEARCH Menu */
 		jMenuSearch            = new JMenu(Translatrix.getTranslationString("Search"));
+        jMenuSearch.setMnemonic(KeyEvent.VK_S); //SD
 		htMenus.put(KEY_MENU_SEARCH, jMenuSearch);
-		JMenuItem jmiFind      = new JMenuItem(Translatrix.getTranslationString("SearchFind"));      if(showMenuIcons) { jmiFind.setIcon(getEkitIcon("Find")); };           jmiFind.setActionCommand(CMD_SEARCH_FIND);           jmiFind.addActionListener(this);      jmiFind.setAccelerator(KeyStroke.getKeyStroke('F', CTRLKEY, false));      jMenuSearch.add(jmiFind);
-		JMenuItem jmiFindAgain = new JMenuItem(Translatrix.getTranslationString("SearchFindAgain")); if(showMenuIcons) { jmiFindAgain.setIcon(getEkitIcon("FindAgain")); }; jmiFindAgain.setActionCommand(CMD_SEARCH_FIND_AGAIN); jmiFindAgain.addActionListener(this); jmiFindAgain.setAccelerator(KeyStroke.getKeyStroke('G', CTRLKEY, false)); jMenuSearch.add(jmiFindAgain);
-		JMenuItem jmiReplace   = new JMenuItem(Translatrix.getTranslationString("SearchReplace"));   if(showMenuIcons) { jmiReplace.setIcon(getEkitIcon("Replace")); };     jmiReplace.setActionCommand(CMD_SEARCH_REPLACE);     jmiReplace.addActionListener(this);   jmiReplace.setAccelerator(KeyStroke.getKeyStroke('R', CTRLKEY, false));   jMenuSearch.add(jmiReplace);
+        JMenuItem jmiFind      = new JMenuItem(Translatrix.getTranslationString("SearchFind"));      jmiFind.setMnemonic(KeyEvent.VK_F); if (showMenuIcons) { jmiFind.setIcon(getEkitIcon("Find")); };           jmiFind.setActionCommand(CMD_SEARCH_FIND);           jmiFind.addActionListener(this);      jmiFind.setAccelerator(KeyStroke.getKeyStroke('F', CTRLKEY, false));      jMenuSearch.add(jmiFind);
+        JMenuItem jmiFindAgain = new JMenuItem(Translatrix.getTranslationString("SearchFindAgain")); jmiFindAgain.setMnemonic(KeyEvent.VK_G); if (showMenuIcons) { jmiFindAgain.setIcon(getEkitIcon("FindAgain")); }; jmiFindAgain.setActionCommand(CMD_SEARCH_FIND_AGAIN); jmiFindAgain.addActionListener(this); jmiFindAgain.setAccelerator(KeyStroke.getKeyStroke('G', CTRLKEY, false)); jMenuSearch.add(jmiFindAgain);
+        JMenuItem jmiReplace   = new JMenuItem(Translatrix.getTranslationString("SearchReplace"));   jmiReplace.setMnemonic(KeyEvent.VK_R); if (showMenuIcons) { jmiReplace.setIcon(getEkitIcon("Replace")); };     jmiReplace.setActionCommand(CMD_SEARCH_REPLACE);     jmiReplace.addActionListener(this);   jmiReplace.setAccelerator(KeyStroke.getKeyStroke('R', CTRLKEY, false));   jMenuSearch.add(jmiReplace);
 
 		/* HELP Menu */
 		jMenuHelp = new JMenu(Translatrix.getTranslationString("Help"));
+        jMenuHelp.setMnemonic(KeyEvent.VK_H); //SD
 		htMenus.put(KEY_MENU_HELP, jMenuHelp);
-		JMenuItem jmiAbout = new JMenuItem(Translatrix.getTranslationString("About")); jmiAbout.setActionCommand(CMD_HELP_ABOUT); jmiAbout.addActionListener(this); jMenuHelp.add(jmiAbout);
+        JMenuItem jmiAbout = new JMenuItem(Translatrix.getTranslationString("About")); jmiAbout.setMnemonic(KeyEvent.VK_A); jmiAbout.setActionCommand(CMD_HELP_ABOUT); jmiAbout.addActionListener(this); jMenuHelp.add(jmiAbout);
 
 		/* DEBUG Menu */
 		jMenuDebug           = new JMenu(Translatrix.getTranslationString("Debug"));
+        jMenuDebug.setMnemonic(KeyEvent.VK_D); //SD
 		htMenus.put(KEY_MENU_DEBUG, jMenuDebug);
 		JMenuItem jmiDesc    = new JMenuItem(Translatrix.getTranslationString("DescribeDoc")); jmiDesc.setActionCommand(CMD_DEBUG_DESCRIBE_DOC);       jmiDesc.addActionListener(this);    jMenuDebug.add(jmiDesc);
 		JMenuItem jmiDescCSS = new JMenuItem(Translatrix.getTranslationString("DescribeCSS")); jmiDescCSS.setActionCommand(CMD_DEBUG_DESCRIBE_CSS); jmiDescCSS.addActionListener(this); jMenuDebug.add(jmiDescCSS);
@@ -1078,12 +1189,40 @@ public class EkitCore extends JPanel implements ActionListener, KeyListener, Foc
 			jcmbStyleSelector.setToolTipText(Translatrix.getTranslationString("PickCSSStyle"));
 			jcmbStyleSelector.setAction(new StylesAction(jcmbStyleSelector));
 			htTools.put(KEY_TOOL_STYLES, jcmbStyleSelector);
+        //SD: Add page zoom
+		jbtnZoomOut = new JButtonNoFocus();
+            jbtnZoomOut.setActionCommand("zoom_out");
+            jbtnZoomOut.addActionListener(this);
+            jbtnZoomOut.setIcon(getEkitIcon("ZoomOut"));
+            jbtnZoomOut.setText(null);
+            jbtnZoomOut.setToolTipText("Zoom out");
+            htTools.put(KEY_TOOL_ZOOM_OUT, jbtnZoomOut);
+        jbtnZoomReset = new JButtonNoFocus();
+            jbtnZoomReset.setActionCommand("zoom_reset");
+            jbtnZoomReset.addActionListener(this);
+            jbtnZoomReset.setIcon(getEkitIcon("ZoomReset"));
+            jbtnZoomReset.setText(null);
+            jbtnZoomReset.setToolTipText("Reset zoom");
+            htTools.put(KEY_TOOL_ZOOM_RESET, jbtnZoomReset);
+        jbtnZoomIn = new JButtonNoFocus();
+            jbtnZoomIn.setActionCommand("zoom_in");
+            jbtnZoomIn.addActionListener(this);
+            jbtnZoomIn.setIcon(getEkitIcon("ZoomIn"));
+            jbtnZoomIn.setText(null);
+            jbtnZoomIn.setToolTipText("Zoom out");
+            htTools.put(KEY_TOOL_ZOOM_IN, jbtnZoomIn);
 		String[] fonts = java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames();
 			Vector<String> vcFontnames = new Vector<String>(fonts.length + 1);
 			vcFontnames.add(Translatrix.getTranslationString("SelectorToolFontsDefaultFont"));
-			for(String fontname : fonts)
-			{
-				vcFontnames.add(fontname);
+            int i = 0;
+            for (String fontname : fonts)
+            {
+                ++i;
+                vcFontnames.add(fontname);
+                if (fontname.equals("Comic Sans MS"))
+                    nDefaultFontIndex = i; //SD: somehow it's +1 (maybe there's a 0th entry?? in menu)
+                else if ((nDefaultFontIndex == -1) && fontname.equals("Arial"))
+                    nDefaultFontIndex = i;
 			}
 			Collections.sort(vcFontnames);
 			jcmbFontSelector = new JComboBoxNoFocus(vcFontnames);
@@ -1175,6 +1314,22 @@ public class EkitCore extends JPanel implements ActionListener, KeyListener, Foc
 		jspViewport.setPreferredSize(new Dimension(400, 400));
 		jspViewport.setMinimumSize(new Dimension(32, 32));
 
+        //SD: Add mouse wheel listener for zooming
+        jtpMain.addMouseWheelListener(new MouseWheelListener() {
+            @Override
+            public void mouseWheelMoved(MouseWheelEvent e) {
+                if (e.isControlDown())
+                {
+                    int cnt = e.getWheelRotation();
+                    //cnt < 0 => scroll up => zoom in
+                    zoom(-cnt * 0.5);
+                    return;
+                }
+                //else propagate event to JScrollPane for normal scrolling
+                jspViewport.dispatchEvent(e);
+            }
+        });
+
 		/* Create the scroll area for the source viewer */
 		jspSource = new JScrollPane(jtpSource);
 		jspSource.setPreferredSize(new Dimension(400, 100));
@@ -1258,6 +1413,18 @@ public class EkitCore extends JPanel implements ActionListener, KeyListener, Foc
 		this(false);
 	}
 
+    protected void informZoomFactor()
+    {
+        if (Math.abs(zoomFactor - 1.0) > 1e-5)
+        {
+            jtpMain.getDocument().putProperty("ZOOM_FACTOR", new Double(zoomFactor));
+            if (!isSourceWindowActive())
+            {
+                jtpMain.repaint();
+            }
+        }
+    }
+
 	/* ActionListener method */
 	public void actionPerformed(ActionEvent ae)
 	{
@@ -1320,6 +1487,26 @@ public class EkitCore extends JPanel implements ActionListener, KeyListener, Foc
 			{
 				writeOutBase64(jtpSource.getText());
 			}
+            else if (command.equals("zoom_out"))
+            {
+                zoom(-0.5);
+            }
+            else if (command.equals("zoom_in"))
+            {
+                zoom(0.5);
+            }
+            else if (command.equals("zoom_reset"))
+            {
+                if (Math.abs(zoomFactor - 1.0) > 1e-5)
+                {
+                    zoomFactor = 1.0;
+                    jtpMain.getDocument().putProperty("ZOOM_FACTOR", new Double(zoomFactor));
+                    if (!isSourceWindowActive())
+                    {
+                        jtpMain.repaint();
+                    }
+                }
+            }
 			else if(command.equals(CMD_CLIP_CUT))
 			{
 				if(jspSource.isShowing() && jtpSource.hasFocus())
@@ -1453,9 +1640,10 @@ public class EkitCore extends JPanel implements ActionListener, KeyListener, Foc
 			else if(command.equals(CMD_TABLE_INSERT))
 			{
 				String[] fieldNames  = { "rows", "cols", "border", "cellspacing", "cellpadding", "width", "valign" };
+                char[] fieldShortcuts  = { 'r', 'c', 'b', 's', 'p', 'w', 'v' };
  				String[] fieldTypes  = { "text", "text", "text",   "text",        "text",        "text",  "combo" };
 				String[] fieldValues = { "3",    "3",    "1",	   "2",	          "4",           "100%",  "top,middle,bottom" };
-				insertTable((Hashtable)null, fieldNames, fieldTypes, fieldValues);
+                insertTable((Hashtable)null, fieldNames, fieldShortcuts, fieldTypes, fieldValues);
 			}
 			else if(command.equals(CMD_TABLE_EDIT))
 			{
@@ -1528,71 +1716,80 @@ public class EkitCore extends JPanel implements ActionListener, KeyListener, Foc
 			else if(command.equals(CMD_FORM_INSERT))
 			{
 				String[] fieldNames  = { "name", "method",   "enctype" };
+                char[] fieldShortcuts  = { 'n', 'm', 'e' };
 				String[] fieldTypes  = { "text", "combo",    "text" };
 				String[] fieldValues = { "",     "POST,GET", "text" };
-				insertFormElement(HTML.Tag.FORM, "form", (Hashtable)null, fieldNames, fieldTypes, fieldValues, true);
+                insertFormElement(HTML.Tag.FORM, "form", (Hashtable)null, fieldNames, fieldShortcuts, fieldTypes, fieldValues, true);
 			}
 			else if(command.equals(CMD_FORM_TEXTFIELD))
 			{
 				Hashtable<String, String> htAttribs = new Hashtable<String, String>();
 				htAttribs.put("type", "text");
 				String[] fieldNames = { "name", "value", "size", "maxlength" };
+                char[] fieldShortcuts  = { 'n', 'v', 's', 'l' };
 				String[] fieldTypes = { "text", "text",  "text", "text" };
-				insertFormElement(HTML.Tag.INPUT, "input", htAttribs, fieldNames, fieldTypes, false);
+                insertFormElement(HTML.Tag.INPUT, "input", htAttribs, fieldNames, fieldShortcuts, fieldTypes, false);
 			}
 			else if(command.equals(CMD_FORM_TEXTAREA))
 			{
 				String[] fieldNames = { "name", "rows", "cols" };
+                char[] fieldShortcuts  = { 'n', 'r', 'c' };
 				String[] fieldTypes = { "text", "text", "text" };
-				insertFormElement(HTML.Tag.TEXTAREA, "textarea", (Hashtable)null, fieldNames, fieldTypes, true);
+                insertFormElement(HTML.Tag.TEXTAREA, "textarea", (Hashtable)null, fieldNames, fieldShortcuts, fieldTypes, true);
 			}
 			else if(command.equals(CMD_FORM_CHECKBOX))
 			{
 				Hashtable<String, String> htAttribs = new Hashtable<String, String>();
 				htAttribs.put("type", "checkbox");
 				String[] fieldNames = { "name", "checked" };
+                char[] fieldShortcuts  = { 'n', 'c' };
 				String[] fieldTypes = { "text", "bool" };
-				insertFormElement(HTML.Tag.INPUT, "input", htAttribs, fieldNames, fieldTypes, false);
+                insertFormElement(HTML.Tag.INPUT, "input", htAttribs, fieldNames, fieldShortcuts, fieldTypes, false);
 			}
 			else if(command.equals(CMD_FORM_RADIO))
 			{
 				Hashtable<String, String> htAttribs = new Hashtable<String, String>();
 				htAttribs.put("type", "radio");
 				String[] fieldNames = { "name", "checked" };
+                char[] fieldShortcuts  = { 'n', 'c' };
 				String[] fieldTypes = { "text", "bool" };
-				insertFormElement(HTML.Tag.INPUT, "input", htAttribs, fieldNames, fieldTypes, false);
+                insertFormElement(HTML.Tag.INPUT, "input", htAttribs, fieldNames, fieldShortcuts, fieldTypes, false);
 			}
 			else if(command.equals(CMD_FORM_PASSWORD))
 			{
 				Hashtable<String, String> htAttribs = new Hashtable<String, String>();
 				htAttribs.put("type", "password");
 				String[] fieldNames = { "name", "value", "size", "maxlength" };
+                char[] fieldShortcuts  = { 'n', 'v', 's', 'l' };
 				String[] fieldTypes = { "text", "text",  "text", "text" };
-				insertFormElement(HTML.Tag.INPUT, "input", htAttribs, fieldNames, fieldTypes, false);
+                insertFormElement(HTML.Tag.INPUT, "input", htAttribs, fieldNames, fieldShortcuts, fieldTypes, false);
 			}
 			else if(command.equals(CMD_FORM_BUTTON))
 			{
 				Hashtable<String, String> htAttribs = new Hashtable<String, String>();
 				htAttribs.put("type", "button");
 				String[] fieldNames = { "name", "value" };
+                char[] fieldShortcuts  = { 'n', 'v'};
 				String[] fieldTypes = { "text", "text" };
-				insertFormElement(HTML.Tag.INPUT, "input", htAttribs, fieldNames, fieldTypes, false);
+                insertFormElement(HTML.Tag.INPUT, "input", htAttribs, fieldNames, fieldShortcuts, fieldTypes, false);
 			}
 			else if(command.equals(CMD_FORM_SUBMIT))
 			{
 				Hashtable<String, String> htAttribs = new Hashtable<String, String>();
 				htAttribs.put("type", "submit");
 				String[] fieldNames = { "name", "value" };
+                char[] fieldShortcuts  = { 'n', 'v' };
 				String[] fieldTypes = { "text", "text" };
-				insertFormElement(HTML.Tag.INPUT, "input", htAttribs, fieldNames, fieldTypes, false);
+                insertFormElement(HTML.Tag.INPUT, "input", htAttribs, fieldNames, fieldShortcuts, fieldTypes, false);
 			}
 			else if(command.equals(CMD_FORM_RESET))
 			{
 				Hashtable<String, String> htAttribs = new Hashtable<String, String>();
 				htAttribs.put("type", "reset");
 				String[] fieldNames = { "name", "value" };
+                char[] fieldShortcuts  = { 'n', 'v' };
 				String[] fieldTypes = { "text", "text" };
-				insertFormElement(HTML.Tag.INPUT, "input", htAttribs, fieldNames, fieldTypes, false);
+                insertFormElement(HTML.Tag.INPUT, "input", htAttribs, fieldNames, fieldShortcuts, fieldTypes, false);
 			}
 			else if(command.equals(CMD_SEARCH_FIND))
 			{
@@ -1918,7 +2115,7 @@ public class EkitCore extends JPanel implements ActionListener, KeyListener, Foc
 
 	/** Method for inserting an HTML Table
 	  */
-	private void insertTable(Hashtable attribs, String[] fieldNames, String[] fieldTypes, String[] fieldValues)
+    private void insertTable(Hashtable attribs, String[] fieldNames, char[] fieldShortcuts, String[] fieldTypes, String[] fieldValues)
 	throws IOException, BadLocationException, RuntimeException, NumberFormatException
 	{
 		int caretPos = jtpMain.getCaretPosition();
@@ -1940,10 +2137,10 @@ public class EkitCore extends JPanel implements ActionListener, KeyListener, Foc
 		int cols = 0;
 		if(fieldNames != null && fieldNames.length > 0)
 		{
-			PropertiesDialog propertiesDialog = new PropertiesDialog(this.getFrame(), fieldNames, fieldTypes, fieldValues, Translatrix.getTranslationString("TableDialogTitle"), true);
+            PropertiesDialog propertiesDialog = new PropertiesDialog(this.getFrame(), fieldNames, fieldShortcuts, fieldTypes, fieldValues, Translatrix.getTranslationString("TableDialogTitle"), true);
 			propertiesDialog.setVisible(true);
 			String decision = propertiesDialog.getDecisionValue();
-			if(decision.equals(Translatrix.getTranslationString("DialogCancel")))
+            if (!decision.equals(Translatrix.getTranslationString("DialogAccept")))
 			{
 				propertiesDialog.dispose();
 				propertiesDialog = null;
@@ -2005,6 +2202,7 @@ public class EkitCore extends JPanel implements ActionListener, KeyListener, Foc
 		{
 			HTML.Attribute[] fieldKeys = { HTML.Attribute.BORDER, HTML.Attribute.CELLSPACING, HTML.Attribute.CELLPADDING, HTML.Attribute.WIDTH, HTML.Attribute.VALIGN };
 			String[] fieldNames  = { "border", "cellspacing", "cellpadding", "width", "valign" };
+            char[] fieldShortcuts = { 'b', 's', 'p', 'w', 'v' };
 			String[] fieldTypes  = { "text",   "text",        "text",        "text",  "combo" };
 			String[] fieldValues = { "",       "",            "",            "",      "top,middle,bottom," };
 			MutableAttributeSet myatr = (MutableAttributeSet)elementParent.getAttributes();
@@ -2022,7 +2220,7 @@ public class EkitCore extends JPanel implements ActionListener, KeyListener, Foc
 					}
 				}
 			}
-			PropertiesDialog propertiesDialog = new PropertiesDialog(this.getFrame(), fieldNames, fieldTypes, fieldValues, Translatrix.getTranslationString("TableEdit"), true);
+            PropertiesDialog propertiesDialog = new PropertiesDialog(this.getFrame(), fieldNames, fieldShortcuts, fieldTypes, fieldValues, Translatrix.getTranslationString("TableEdit"), true);
 			propertiesDialog.setVisible(true);
 			if(!propertiesDialog.getDecisionValue().equals(Translatrix.getTranslationString("DialogCancel")))
 			{
@@ -2063,6 +2261,7 @@ public class EkitCore extends JPanel implements ActionListener, KeyListener, Foc
 		{
 			HTML.Attribute[] fieldKeys = { HTML.Attribute.WIDTH,HTML.Attribute.HEIGHT,HTML.Attribute.ALIGN,HTML.Attribute.VALIGN,HTML.Attribute.BGCOLOR };
 			String[] fieldNames  = { "width", "height", "align", "valign", "bgcolor" };
+            char[] fieldShortcuts  = { 'w', 'h', 'a', 'v', 'b' };
 			String[] fieldTypes  = { "text",  "text",   "combo", "combo",  "combo" };
 			String[] fieldValues = { "",      "",       "left,right,center", "top,middle,bottom", "none,aqua,black,fuchsia,gray,green,lime,maroon,navy,olive,purple,red,silver,teal,white,yellow" };
 			MutableAttributeSet myatr = (MutableAttributeSet)elementParent.getAttributes();
@@ -2080,7 +2279,7 @@ public class EkitCore extends JPanel implements ActionListener, KeyListener, Foc
 					}
 				}
 			}
-			PropertiesDialog propertiesDialog = new PropertiesDialog(this.getFrame(), fieldNames, fieldTypes, fieldValues, Translatrix.getTranslationString("TableCellEdit"), true);
+            PropertiesDialog propertiesDialog = new PropertiesDialog(this.getFrame(), fieldNames, fieldShortcuts, fieldTypes, fieldValues, Translatrix.getTranslationString("TableCellEdit"), true);
 			propertiesDialog.setVisible(true);
 			if(!propertiesDialog.getDecisionValue().equals(Translatrix.getTranslationString("DialogCancel")))
 			{
@@ -2380,7 +2579,7 @@ public class EkitCore extends JPanel implements ActionListener, KeyListener, Foc
 
 	/** Method for inserting a form element
 	  */
-	private void insertFormElement(HTML.Tag baseTag, String baseElement, Hashtable attribs, String[] fieldNames, String[] fieldTypes, String[] fieldValues, boolean hasClosingTag)
+    private void insertFormElement(HTML.Tag baseTag, String baseElement, Hashtable attribs, String[] fieldNames, char[] fieldShortcuts, String[] fieldTypes, String[] fieldValues, boolean hasClosingTag)
 	throws IOException, BadLocationException, RuntimeException
 	{
 		int caretPos = jtpMain.getCaretPosition();
@@ -2400,10 +2599,10 @@ public class EkitCore extends JPanel implements ActionListener, KeyListener, Foc
 		}
 		if(fieldNames != null && fieldNames.length > 0)
 		{
-			PropertiesDialog propertiesDialog = new PropertiesDialog(this.getFrame(), fieldNames, fieldTypes, fieldValues, Translatrix.getTranslationString("FormDialogTitle"), true);
+            PropertiesDialog propertiesDialog = new PropertiesDialog(this.getFrame(), fieldNames, fieldShortcuts, fieldTypes, fieldValues, Translatrix.getTranslationString("FormDialogTitle"), true);
 			propertiesDialog.setVisible(true);
 			String decision = propertiesDialog.getDecisionValue();
-			if(decision.equals(Translatrix.getTranslationString("DialogCancel")))
+            if (!decision.equals(Translatrix.getTranslationString("DialogAccept")))
 			{
 				propertiesDialog.dispose();
 				propertiesDialog = null;
@@ -2461,10 +2660,10 @@ public class EkitCore extends JPanel implements ActionListener, KeyListener, Foc
 
 	/** Alternate method call for inserting a form element
 	  */
-	private void insertFormElement(HTML.Tag baseTag, String baseElement, Hashtable attribs, String[] fieldNames, String[] fieldTypes, boolean hasClosingTag)
+    private void insertFormElement(HTML.Tag baseTag, String baseElement, Hashtable attribs, String[] fieldNames, char[] fieldShortcuts, String[] fieldTypes, boolean hasClosingTag)
 	throws IOException, BadLocationException, RuntimeException
 	{
-		insertFormElement(baseTag, baseElement, attribs, fieldNames, fieldTypes, new String[fieldNames.length], hasClosingTag);
+        insertFormElement(baseTag, baseElement, attribs, fieldNames, fieldShortcuts, fieldTypes, new String[fieldNames.length], hasClosingTag);
 	}
 
 	/** Method that handles initial list insertion and deletion
@@ -2891,6 +3090,7 @@ public class EkitCore extends JPanel implements ActionListener, KeyListener, Foc
 			jtpSource.setText(jtpMain.getText());
 			currentFile = whatFile;
 			updateTitle();
+			informZoomFactor();
 		}
 		finally
 		{
@@ -3170,7 +3370,7 @@ public class EkitCore extends JPanel implements ActionListener, KeyListener, Foc
 
 		customizeToolBar(TOOLBAR_MAIN,   vcToolPicks.get(0), true);
 		customizeToolBar(TOOLBAR_FORMAT, vcToolPicks.get(1), true);
-		customizeToolBar(TOOLBAR_STYLES, vcToolPicks.get(2), true);
+        customizeToolBar(TOOLBAR_STYLES, vcToolPicks.get(2), false); //SD: hide useless styles bar by default
 	}
 
 	/** Convenience method for creating the single toolbar from a sequence string
@@ -3790,4 +3990,31 @@ public class EkitCore extends JPanel implements ActionListener, KeyListener, Foc
 		}
 	}
 
+    protected void zoom(double zoomAmount)
+    {
+        if (zoomAmount > 0.0) //zoom in
+        {
+            zoomFactor += zoomAmount;
+            jtpMain.getDocument().putProperty("ZOOM_FACTOR", new Double(zoomFactor));
+            if (!isSourceWindowActive())
+            {
+                jtpMain.repaint();
+            }
+            return;
+        }
+        //else zoom out
+        if (zoomFactor > 0.5)
+        {
+            zoomFactor += zoomAmount;
+            if (zoomFactor < 0.5)
+            {
+                zoomFactor = 0.5;
+            }
+            jtpMain.getDocument().putProperty("ZOOM_FACTOR", new Double(zoomFactor));
+            if (!isSourceWindowActive())
+            {
+                jtpMain.repaint();
+            }
+        }
+    }
 }

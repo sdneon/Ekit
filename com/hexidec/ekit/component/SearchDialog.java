@@ -30,7 +30,7 @@ import javax.swing.JCheckBox;
 import javax.swing.JDialog;
 import javax.swing.JOptionPane;
 import javax.swing.JTextField;
-
+import javax.swing.JLabel;
 import com.hexidec.util.Translatrix;
 
 /** Class for providing a dialog that lets the user specify arguments for
@@ -50,18 +50,27 @@ public class SearchDialog extends JDialog
 		super(parent, title, bModal);
 		final boolean isReplaceDialog    = bIsReplace;
 		final JTextField jtxfFindTerm    = new JTextField(3);
+        jtxfFindTerm.setFocusAccelerator('f');
+        final JLabel txtFind = new JLabel(Translatrix.getTranslationString("SearchFind"));
+        txtFind.setDisplayedMnemonic('f');
 		final JTextField jtxfReplaceTerm = new JTextField(3);
+        jtxfReplaceTerm.setFocusAccelerator('r');
+        final JLabel txtReplace = new JLabel(Translatrix.getTranslationString("SearchReplace"));
+        txtReplace.setDisplayedMnemonic('r');
 		final JCheckBox  jchkCase        = new JCheckBox(Translatrix.getTranslationString("SearchCaseSensitive"), bCaseSetting);
+        jchkCase.setMnemonic('c');
 		final JCheckBox  jchkTop         = new JCheckBox(Translatrix.getTranslationString("SearchStartAtTop"), bTopSetting);
+        jchkTop.setMnemonic('t');
 		final JCheckBox  jchkAll         = new JCheckBox(Translatrix.getTranslationString("SearchReplaceAll"), false);
+        jchkAll.setMnemonic('a');
 		final Object[] buttonLabels      = { Translatrix.getTranslationString("DialogAccept"), Translatrix.getTranslationString("DialogCancel") };
 		if(bIsReplace)
 		{
 			Object[] panelContents = {
-				Translatrix.getTranslationString("SearchFind"),
+                txtFind,
 				jtxfFindTerm,
-				Translatrix.getTranslationString("SearchReplace"),
-				jtxfReplaceTerm,
+                txtReplace,
+                jtxfReplaceTerm,
 				jchkAll,
 				jchkCase,
 				jchkTop
@@ -71,7 +80,7 @@ public class SearchDialog extends JDialog
 		else
 		{
 			Object[] panelContents = {
-				Translatrix.getTranslationString("SearchFind"),
+                txtFind,
 				jtxfFindTerm,
 				jchkCase,
 				jchkTop
@@ -92,7 +101,7 @@ public class SearchDialog extends JDialog
 			public void propertyChange(PropertyChangeEvent e)
 			{
 				String prop = e.getPropertyName();
-				if(isVisible() 
+				if(isVisible()
 					&& (e.getSource() == jOptionPane)
 					&& (prop.equals(JOptionPane.VALUE_PROPERTY) || prop.equals(JOptionPane.INPUT_VALUE_PROPERTY)))
 				{
